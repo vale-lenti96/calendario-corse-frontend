@@ -314,4 +314,4 @@ export default function RacePlannerApp() {
 }
 
 function exportJSON(payload) { const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `race-planner-${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }
-feat: nuova UI light + build-up da DB + validazione date.
+
