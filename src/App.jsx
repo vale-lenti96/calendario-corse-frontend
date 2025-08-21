@@ -1,18 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 /**
- * RUNNING SITE — Light Minimal + Build-Up Races
- * - Tema chiaro: sfondo bianco, testo nero, bottoni verde scuro.
- * - Carousel minimalista in Home (senza librerie).
- * - Motore di ricerca gare (provider adattivo: /api/races o mock).
- * - Scheda gara con "Build-Up Races": suggerisce 2–4 gare di avvicinamento in base alla distanza target e alle date.
- *
- * Compatibilità:
- * - React + Vite standard, nessuna dipendenza nuova.
- * - RaceDataProvider: usa window.RaceDataProvider se presente, altrimenti prova /api/races; fallback su mock.
+ * FRONTEND — Light Minimal (uguale al precedente) + Carousel + Build-Up Races
+ * - Sfondo bianco, testo nero, pulsanti verde scuro.
+ * - Carousel minimalista in Home.
+ * - Ricerca gare collegata al backend Render (nessun mock).
+ * - Scheda gara con "Genera Build‑Up" (finestra -16 → -1 settimane).
  */
 
-// ---------- THEME (Light Minimal) ----------
+const API_BASE = "https://backend-db-corse-v2.onrender.com";
+
+// ---------- THEME (Light Minimal: identico al precedente) ----------
 const CSS = `
 :root{
   --bg:#FFFFFF;
@@ -158,7 +156,7 @@ button{font:inherit; cursor:pointer}
 }
 `;
 
-// ---------- Minimal hash router ----------
+// ---------- Router minimale ----------
 function parseHashRoute() {
   const raw = window.location.hash || '#/home';
   const [pathPart, queryPart] = raw.replace(/^#/, '').split('?');
@@ -172,7 +170,10 @@ function navigate(path, params) {
 }
 
 // ---------- Helpers ----------
-const fmtDate = (iso) => new Date(iso).toLocaleDateString(undefined, { day:'2-digit', month:'short', year:'numeric' });
+const fmtDate = (iso) => {
+  try { return new Date(iso).toLocaleDateString(undefined, { day:'2-digit', month:'short', year:'numeric' }); }
+  catch { return iso; }
+};
 const withinDate = (iso, from, to) => {
   if (!iso) return false;
   const d = new Date(iso).setHours(0,0,0,0);
@@ -190,101 +191,23 @@ const weeksBetween = (fromIso, toIso) => {
   return Math.round(ms / (7*24*3600*1000));
 };
 
-// ---------- Data types ----------
-/**
- * @typedef {Object} Race
- * @prop {string} id
- * @prop {string} name
- * @prop {string} city
- * @prop {string} country
- * @prop {string} dateStart  // YYYY-MM-DD
- * @prop {string=} dateEnd
- * @prop {string[]} distances // ["5K","10K","21K","42K",...]
- * @prop {'road'|'trail'|'mixed'} surface
- * @prop {'flat'|'rolling'|'hilly'=} elevationProfile
- * @prop {boolean=} pbFriendly
- * @prop {number=} priceFrom
- * @prop {string=} website
- */
-
-// ---------- Mock (fallback) ----------
-const mockRaces = [
-  { id:'romemm25', name:'Rome Marathon', city:'Roma', country:'Italy', dateStart:'2025-10-19', distances:['42K'], surface:'road', elevationProfile:'rolling', pbFriendly:false, priceFrom:95, website:'https://www.runrome.com/' },
-  { id:'milano21_25', name:'Milano21 Half Marathon', city:'Milano', country:'Italy', dateStart:'2025-11-23', distances:['21K','10K'], surface:'road', elevationProfile:'flat', pbFriendly:true, priceFrom:35 },
-  { id:'berlin10_25', name:'Berlin 10K City', city:'Berlin', country:'Germany', dateStart:'2025-09-14', distances:['10K'], surface:'road', elevationProfile:'flat', pbFriendly:true, priceFrom:29 },
-  { id:'valencia26', name:'Valencia Marathon', city:'Valencia', country:'Spain', dateStart:'2026-12-06', distances:['42K'], surface:'road', elevationProfile:'flat', pbFriendly:true, priceFrom:120 },
-  { id:'amsHalf26', name:'Amsterdam Half', city:'Amsterdam', country:'Netherlands', dateStart:'2026-10-18', distances:['21K'], surface:'road', elevationProfile:'flat', pbFriendly:true, priceFrom:45 },
-  { id:'edin10_26', name:'Edinburgh 10K', city:'Edinburgh', country:'UK', dateStart:'2026-05-24', distances:['10K'], surface:'road', elevationProfile:'rolling', pbFriendly:false, priceFrom:30 },
-  { id:'parisHalf26', name:'Paris Half', city:'Paris', country:'France', dateStart:'2026-03-08', distances:['21K'], surface:'road', elevationProfile:'flat', pbFriendly:true, priceFrom:49 },
-  { id:'madeiraTrail25', name:'Madeira Trail 25K', city:'Funchal', country:'Portugal', dateStart:'2025-12-07', distances:['25K'], surface:'trail', elevationProfile:'hilly', pbFriendly:false, priceFrom:40 },
-  { id:'pragueMar26', name:'Prague Marathon', city:'Prague', country:'Czech Republic', dateStart:'2026-05-11', distances:['42K'], surface:'road', elevationProfile:'rolling', pbFriendly:false, priceFrom:98 },
-  { id:'cphHalf26', name:'Copenhagen Half', city:'Copenhagen', country:'Denmark', dateStart:'2026-09-20', distances:['21K'], surface:'road', elevationProfile:'flat', pbFriendly:true, priceFrom:58 },
-  { id:'munich10_26', name:'Munich 10K Night', city:'Munich', country:'Germany', dateStart:'2026-07-04', distances:['10K'], surface:'road', elevationProfile:'flat', pbFriendly:true, priceFrom:25 },
-  { id:'osloHalf26', name:'Oslo Half', city:'Oslo', country:'Norway', dateStart:'2026-09-13', distances:['21K'], surface:'road', elevationProfile:'rolling', pbFriendly:false, priceFrom:55 },
-  { id:'zurichMar26', name:'Zurich Marathon', city:'Zurich', country:'Switzerland', dateStart:'2026-04-19', distances:['42K','10K'], surface:'road', elevationProfile:'rolling', pbFriendly:false, priceFrom:110 },
-  { id:'viennaMar26', name:'Vienna City Marathon', city:'Vienna', country:'Austria', dateStart:'2026-04-12', distances:['42K','21K'], surface:'road', elevationProfile:'flat', pbFriendly:true, priceFrom:99 },
-  { id:'seville26', name:'Seville Marathon', city:'Seville', country:'Spain', dateStart:'2026-02-23', distances:['42K'], surface:'road', elevationProfile:'flat', pbFriendly:true, priceFrom:85 },
-];
-
-// ---------- Provider adattivo ----------
-const RaceDataProvider = (() => {
-  if (typeof window !== 'undefined' && window.RaceDataProvider && typeof window.RaceDataProvider.search === 'function') {
-    return window.RaceDataProvider;
+// ---------- Provider REST (solo backend) ----------
+const RaceDataProvider = {
+  async search(params) {
+    const url = `${API_BASE}/api/races?` + new URLSearchParams(params || {}).toString();
+    const res = await fetch(url, { headers:{ 'Accept':'application/json' } });
+    if (!res.ok) return { races: [], total: 0 };
+    const data = await res.json();
+    return { races: data.races || [], total: data.total || 0 };
+  },
+  async getById(id) {
+    const res = await fetch(`${API_BASE}/api/races/${encodeURIComponent(id)}`, { headers:{ 'Accept':'application/json' } });
+    if (!res.ok) return null;
+    return await res.json();
   }
-  const restProvider = {
-    async search(params) {
-      try {
-        const url = '/api/races?' + new URLSearchParams(params).toString();
-        const res = await fetch(url, { headers:{ 'Accept':'application/json' } });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && Array.isArray(data.races)) return data;
-        }
-      } catch (e) { /* fallback */ }
-      // Fallback mock
-      const { q, distance, country, surface, elevation, dateFrom, dateTo } = params || {};
-      let filtered = [...mockRaces];
-      if (q) {
-        const s = String(q).toLowerCase();
-        filtered = filtered.filter(r =>
-          r.name.toLowerCase().includes(s) ||
-          r.city.toLowerCase().includes(s) ||
-          r.country.toLowerCase().includes(s)
-        );
-      }
-      if (distance) {
-        const wanted = distance.split(',').map(x=>x.trim());
-        filtered = filtered.filter(r => r.distances.some(d => wanted.includes(d)));
-      }
-      if (country) {
-        const c = String(country).toLowerCase();
-        filtered = filtered.filter(r => r.country.toLowerCase().includes(c));
-      }
-      if (surface) {
-        const s = surface.split(',').map(x=>x.trim());
-        filtered = filtered.filter(r => s.includes(r.surface));
-      }
-      if (elevation) {
-        const e = elevation.split(',').map(x=>x.trim());
-        filtered = filtered.filter(r => e.includes(r.elevationProfile || ''));
-      }
-      if (dateFrom || dateTo) {
-        filtered = filtered.filter(r => withinDate(r.dateStart, dateFrom, dateTo));
-      }
-      return { races: filtered, total: filtered.length };
-    },
-    async getById(id) {
-      try {
-        const res = await fetch('/api/races/' + id, { headers:{ 'Accept':'application/json' } });
-        if (res.ok) return await res.json();
-      } catch (_) {}
-      return mockRaces.find(r => r.id === id) || null;
-    }
-  };
-  return restProvider;
-})();
+};
 
-// ---------- Wishlist (localStorage) ----------
+// ---------- Wishlist (localStorage, invariata) ----------
 const wlKey = 'run_wishlist';
 const readWishlist = () => { try { return JSON.parse(localStorage.getItem(wlKey) || '[]'); } catch { return []; } };
 const writeWishlist = (arr) => localStorage.setItem(wlKey, JSON.stringify(arr));
@@ -301,7 +224,7 @@ const useWishlist = () => {
   return { ids, toggle };
 };
 
-// ---------- Components ----------
+// ---------- UI ----------
 function Header({ route }) {
   const tab = route.path.replace(/^\//,'');
   const link = (href, label) => (
@@ -343,18 +266,17 @@ function Footer() {
   );
 }
 
-// ---- Carousel minimalista (Home) ----
+// ---- Carousel minimalista (identico stile) ----
 function Carousel({ slides = [], autoMs = 4500 }) {
   const [idx, setIdx] = useState(0);
   const trackRef = useRef(null);
   useEffect(() => {
-    const t = setInterval(() => setIdx(i => (i+1)%slides.length), slides.length ? autoMs : 99999999);
+    if (!slides.length) return;
+    const t = setInterval(() => setIdx(i => (i+1)%slides.length), autoMs);
     return () => clearInterval(t);
   }, [slides.length, autoMs]);
   useEffect(() => {
-    if (trackRef.current) {
-      trackRef.current.style.transform = `translateX(-${idx*100}%)`;
-    }
+    if (trackRef.current) trackRef.current.style.transform = `translateX(-${idx*100}%)`;
   }, [idx]);
   if (!slides.length) return null;
   return (
@@ -393,7 +315,7 @@ function SearchHero({ initial, onSearch }) {
 
   const submit = (e) => {
     e.preventDefault();
-    const params = { q, distance, country, surface, elevation, dateFrom, dateTo };
+    const params = { q, distance, country, surface, elevation, dateFrom, dateTo, page: 1, limit: 60 };
     Object.keys(params).forEach(k => { if (!params[k]) delete params[k]; });
     onSearch(params);
   };
@@ -415,7 +337,6 @@ function SearchHero({ initial, onSearch }) {
             <option value="10K">10K</option>
             <option value="21K">21K</option>
             <option value="42K">42K</option>
-            <option value="25K">25K</option>
           </select>
         </div>
         <div className="group">
@@ -466,11 +387,11 @@ function RaceCard({ r, wished, onWish, onOpen }) {
       <h3>{r.name}</h3>
       <div className="meta">{r.city} • {r.country} • {fmtDate(r.dateStart)}</div>
       <div className="badges">
-        <span className="badge">{r.distances.join(' / ')}</span>
-        <span className="badge">{r.surface}</span>
+        {Array.isArray(r.distances) && r.distances.length > 0 && <span className="badge">{r.distances.join(' / ')}</span>}
+        {r.surface && <span className="badge">{r.surface}</span>}
         {r.elevationProfile && <span className="badge">{r.elevationProfile}</span>}
         {r.pbFriendly && <span className="badge good">PB-friendly</span>}
-        {r.priceFrom ? <span className="badge">€{r.priceFrom}+</span> : null}
+        {typeof r.priceFrom === 'number' && <span className="badge">€{r.priceFrom}+</span>}
       </div>
       <div className="card-actions">
         <button className="btn secondary" onClick={() => onOpen(r)}>Dettagli</button>
@@ -480,20 +401,9 @@ function RaceCard({ r, wished, onWish, onOpen }) {
   );
 }
 
-// ---- Build-Up logic ----
+// ---- Build-Up logic (come prima) ----
 const ROLE_ORDER = ['Tune-up 10K', 'Tune-up 21K', 'Test 5K', 'Dress rehearsal'];
-function chooseRole(distanceList) {
-  if (distanceList.includes('42K')) return 'Target Marathon';
-  if (distanceList.includes('21K')) return 'Target Half';
-  if (distanceList.includes('10K')) return 'Target 10K';
-  return 'Target Race';
-}
-
 function recommendBuildUp(target, candidates) {
-  // Regole base:
-  // - Finestra: da -16 settimane a -1 settimana dalla target
-  // - Priorità distanze: per 42K -> 21K (–5/–8w) e 10K (–10/–12w); per 21K -> 10K (–4/–6w) e 5K (–2/–4w)
-  // - Coerenza superficie: preferisci stessa surface target
   const tDate = target.dateStart;
   const from = addDays(tDate, -16*7);
   const to = addDays(tDate, -7);
@@ -510,9 +420,8 @@ function recommendBuildUp(target, candidates) {
     .sort((a,b) => new Date(a.dateStart) - new Date(b.dateStart));
 
   const picks = [];
-
-  const isMarathon = target.distances.includes('42K');
-  const isHalf = target.distances.includes('21K');
+  const isMarathon = target.distances?.includes('42K');
+  const isHalf = target.distances?.includes('21K');
 
   const pickOne = (filterFn) => {
     const found = base
@@ -525,37 +434,34 @@ function recommendBuildUp(target, candidates) {
   };
 
   if (isMarathon) {
-    pickOne(r => r.distances.includes('21K') && r.weeks>=5 && r.weeks<=8);   // Half chiave
-    pickOne(r => r.distances.includes('10K') && r.weeks>=10 && r.weeks<=12); // 10K
-    pickOne(r => r.distances.includes('5K') && r.weeks>=2 && r.weeks<=4);    // 5K
+    pickOne(r => r.distances?.includes('21K') && r.weeks>=5 && r.weeks<=8);
+    pickOne(r => r.distances?.includes('10K') && r.weeks>=10 && r.weeks<=12);
+    pickOne(r => r.distances?.includes('5K') && r.weeks>=2 && r.weeks<=4);
   } else if (isHalf) {
-    pickOne(r => r.distances.includes('10K') && r.weeks>=4 && r.weeks<=6);
-    pickOne(r => r.distances.includes('5K') && r.weeks>=2 && r.weeks<=4);
+    pickOne(r => r.distances?.includes('10K') && r.weeks>=4 && r.weeks<=6);
+    pickOne(r => r.distances?.includes('5K') && r.weeks>=2 && r.weeks<=4);
   } else {
-    // Target 10K o altro
-    pickOne(r => r.distances.includes('5K') && r.weeks>=2 && r.weeks<=4);
-    pickOne(r => r.distances.includes('10K') && r.weeks>=3 && r.weeks<=8);
+    pickOne(r => r.distances?.includes('5K') && r.weeks>=2 && r.weeks<=4);
+    pickOne(r => r.distances?.includes('10K') && r.weeks>=3 && r.weeks<=8);
   }
 
-  // Riempimento se pochi risultati
   if (picks.length < 2) {
     const filler = base.filter(r => !picks.find(p=>p.id===r.id)).slice(0, 2 - picks.length);
     picks.push(...filler);
   }
 
-  // Assegna ruolo
   return picks.map(r => {
     let role = 'Tune-up';
     if (isMarathon) {
-      if (r.distances.includes('21K')) role = 'Tune-up 21K';
-      else if (r.distances.includes('10K')) role = 'Tune-up 10K';
-      else if (r.distances.includes('5K')) role = 'Test 5K';
+      if (r.distances?.includes('21K')) role = 'Tune-up 21K';
+      else if (r.distances?.includes('10K')) role = 'Tune-up 10K';
+      else if (r.distances?.includes('5K')) role = 'Test 5K';
     } else if (isHalf) {
-      if (r.distances.includes('10K')) role = 'Tune-up 10K';
-      else if (r.distances.includes('5K')) role = 'Test 5K';
+      if (r.distances?.includes('10K')) role = 'Tune-up 10K';
+      else if (r.distances?.includes('5K')) role = 'Test 5K';
     } else {
-      if (r.distances.includes('5K')) role = 'Test 5K';
-      else if (r.distances.includes('10K')) role = 'Tune-up 10K';
+      if (r.distances?.includes('5K')) role = 'Test 5K';
+      else if (r.distances?.includes('10K')) role = 'Tune-up 10K';
     }
     return { ...r, role };
   }).sort((a,b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role));
@@ -567,14 +473,15 @@ function RaceDetailModal({ race, onClose }) {
 
   const generateBuild = async () => {
     setLoading(true);
-    // cerca candidati nella finestra (le regole sono dentro recommendBuildUp)
     const windowFrom = addDays(race.dateStart, -16*7);
     const windowTo = addDays(race.dateStart, -7);
-    // usa filters generici + stessa surface per priorità (comunque la logica pesa la surface)
     const data = await RaceDataProvider.search({
-      surface: race.surface,
+      surface: race.surface || '',
       dateFrom: windowFrom,
-      dateTo: windowTo
+      dateTo: windowTo,
+      limit: 200,
+      orderBy: 'date_start',
+      orderDir: 'asc'
     });
     const recs = recommendBuildUp(race, data.races || []);
     setBuild(recs);
@@ -587,7 +494,7 @@ function RaceDetailModal({ race, onClose }) {
         <div className="sheet-header">
           <div>
             <h3 style={{margin:0}}>{race.name}</h3>
-            <div className="sub">{race.city} • {race.country} — {fmtDate(race.dateStart)} — {race.distances.join(' / ')}</div>
+            <div className="sub">{race.city} • {race.country} — {fmtDate(race.dateStart)} — {(race.distances||[]).join(' / ')}</div>
           </div>
           <button className="btn secondary" onClick={onClose}>Chiudi</button>
         </div>
@@ -595,16 +502,16 @@ function RaceDetailModal({ race, onClose }) {
           <div className="section" style={{margin:0}}>
             <h2>Overview</h2>
             <div className="badges" style={{marginTop:8}}>
-              <span className="badge">{race.surface}</span>
+              {race.surface && <span className="badge">{race.surface}</span>}
               {race.elevationProfile && <span className="badge">{race.elevationProfile}</span>}
               {race.pbFriendly && <span className="badge good">PB-friendly</span>}
-              {race.priceFrom ? <span className="badge">€{race.priceFrom}+</span> : null}
+              {typeof race.priceFrom === 'number' && <span className="badge">€{race.priceFrom}+</span>}
             </div>
           </div>
 
           <div className="section" style={{margin:0}}>
             <h2>Build‑Up Races</h2>
-            <p className="sub">Seleziona questa gara come <strong>target</strong> e genera un percorso di avvicinamento automatico.</p>
+            <p className="sub">Genera le gare di avvicinamento nella finestra <strong>-16 → -1 settimane</strong> dalla gara target.</p>
             <div style={{display:'flex', gap:10, flexWrap:'wrap', marginTop:8}}>
               <button className="btn" onClick={generateBuild} disabled={loading}>{loading ? 'Calcolo…' : 'Genera Build‑Up'}</button>
               {race.website && <a className="btn secondary" href={race.website} target="_blank" rel="noreferrer">Sito ufficiale</a>}
@@ -613,7 +520,7 @@ function RaceDetailModal({ race, onClose }) {
             {build && (
               <>
                 {build.length === 0 ? (
-                  <div className="empty" style={{marginTop:12}}>Nessuna gara di avvicinamento trovata nella finestra -16 → -1 settimane. Allarga i filtri o cambia target.</div>
+                  <div className="empty" style={{marginTop:12}}>Nessuna gara di avvicinamento trovata. Allarga i filtri o scegli un’altra target.</div>
                 ) : (
                   <div className="build-list" style={{marginTop:12}}>
                     {build.map(b => (
@@ -624,8 +531,8 @@ function RaceDetailModal({ race, onClose }) {
                         </div>
                         <div className="right">
                           <span className="build-chip">{b.role}</span>
-                          <span className="build-chip">{b.distances.join(' / ')}</span>
-                          <a className="btn secondary" href={`#${'/gare?id='+encodeURIComponent(b.id)}`} onClick={(e)=>{e.preventDefault(); alert('Apri la scheda di questa gara dalla ricerca.');}}>Dettagli</a>
+                          <span className="build-chip">{(b.distances||[]).join(' / ')}</span>
+                          <a className="btn secondary" href={`#${'/gare?id='+encodeURIComponent(b.id)}`} onClick={(e)=>{e.preventDefault(); /* apertura scheda dal listing */}}>Dettagli</a>
                         </div>
                       </div>
                     ))}
@@ -649,17 +556,28 @@ function RacesView({ route, wishlist }) {
   const elevation = route.query.get('elevation') || '';
   const dateFrom = route.query.get('dateFrom') || '';
   const dateTo = route.query.get('dateTo') || '';
+  const pageParam = parseInt(route.query.get('page') || '1', 10);
+  const limitParam = parseInt(route.query.get('limit') || '60', 10);
+
   const initial = useMemo(()=>({ q, distance, country, surface, elevation, dateFrom, dateTo }), [q,distance,country,surface,elevation,dateFrom,dateTo]);
 
   const [loading, setLoading] = useState(false);
   const [races, setRaces] = useState([]);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(pageParam);
+  const [limit] = useState(limitParam);
   const [open, setOpen] = useState(null);
 
-  const runSearch = async (params) => {
+  const runSearch = async (params, append=false) => {
     setLoading(true);
-    const data = await RaceDataProvider.search(params);
-    setRaces(data.races || []);
+    const data = await RaceDataProvider.search({
+      ...params,
+      page,
+      limit,
+      orderBy: 'date_start',
+      orderDir: 'asc'
+    });
+    setRaces(prev => append ? [...prev, ...(data.races||[])] : (data.races||[]));
     setTotal(data.total || 0);
     setLoading(false);
   };
@@ -667,35 +585,60 @@ function RacesView({ route, wishlist }) {
   useEffect(() => {
     const params = {};
     for (const [k,v] of route.query.entries()) params[k] = v;
-    runSearch(params);
+    setPage(pageParam);
+    runSearch(params, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route.path, route.query.toString()]);
 
   const onSearch = (params) => navigate('/gare', params);
   const onOpen = (r) => setOpen(r);
 
+  const loadMore = async () => {
+    const params = {};
+    for (const [k,v] of route.query.entries()) params[k] = v;
+    const next = page + 1;
+    setPage(next);
+    const data = await RaceDataProvider.search({
+      ...params, page: next, limit, orderBy: 'date_start', orderDir: 'asc'
+    });
+    setRaces(prev => [...prev, ...(data.races||[])]);
+    setTotal(data.total || 0);
+  };
+
   return (
     <>
       <SearchHero initial={initial} onSearch={onSearch} />
       <div className="section">
         <h2>Risultati {loading ? '…' : `(${total})`}</h2>
-        {loading ? <div className="empty">Carico le gare…</div> :
-          (races.length === 0 ? <div className="empty">Nessuna gara trovata. Prova a cambiare filtri o data.</div> :
-            <div className="list">
-              {races.map(r => (
-                <RaceCard
-                  key={r.id}
-                  r={r}
-                  wished={wishlist.ids.includes(r.id)}
-                  onWish={wishlist.toggle}
-                  onOpen={onOpen}
-                />
-              ))}
-            </div>
-          )
-        }
+        {loading && races.length === 0 ? (
+          <div className="empty">Carico le gare…</div>
+        ) : (
+          <>
+            {races.length === 0 ? (
+              <div className="empty">Nessuna gara trovata. Modifica i filtri o la data.</div>
+            ) : (
+              <div className="list">
+                {races.map(r => (
+                  <RaceCard
+                    key={r.id}
+                    r={r}
+                    wished={wishlist.ids.includes(r.id)}
+                    onWish={wishlist.toggle}
+                    onOpen={onOpen}
+                  />
+                ))}
+              </div>
+            )}
+            {races.length < total && (
+              <div style={{display:'flex', justifyContent:'center', marginTop:12}}>
+                <button className="btn" onClick={loadMore} disabled={loading}>
+                  {loading ? 'Carico…' : 'Carica altri'}
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
-
       {open && <RaceDetailModal race={open} onClose={()=>setOpen(null)} />}
     </>
   );
@@ -707,6 +650,16 @@ function HomeView({ onQuickSearch }) {
     { title:'Maratone PB-friendly', subtitle:'Filtra per percorsi piatti e veloci.', cta:{ label:'Vedi maratone', onClick:()=>onQuickSearch({ distance:'42K', elevation:'flat', surface:'road' }) } },
     { title:'Trail in Europa', subtitle:'Scopri percorsi spettacolari su sterrato.', cta:{ label:'Esplora trail', onClick:()=>onQuickSearch({ surface:'trail' }) } },
   ];
+
+  // “In evidenza” dal backend (prime 6 per la home)
+  const [featured, setFeatured] = useState([]);
+  useEffect(() => {
+    (async () => {
+      const data = await RaceDataProvider.search({ limit: 6, orderBy: 'date_start', orderDir: 'asc' });
+      setFeatured(data.races || []);
+    })();
+  }, []);
+
   return (
     <>
       <div className="hero">
@@ -718,27 +671,31 @@ function HomeView({ onQuickSearch }) {
 
       <div className="section">
         <h2>Prossimi eventi in evidenza</h2>
-        <div className="list">
-          {mockRaces.slice(0,6).map(r => (
-            <div className="card" key={r.id}>
-              <h3>{r.name}</h3>
-              <div className="meta">{r.city} • {r.country} • {fmtDate(r.dateStart)}</div>
-              <div className="badges">
-                <span className="badge">{r.distances.join(' / ')}</span>
-                {r.pbFriendly && <span className="badge good">PB-friendly</span>}
+        {featured.length === 0 ? (
+          <div className="empty">Nessun evento da mostrare al momento.</div>
+        ) : (
+          <div className="list">
+            {featured.map(r => (
+              <div className="card" key={r.id}>
+                <h3>{r.name}</h3>
+                <div className="meta">{r.city} • {r.country} • {fmtDate(r.dateStart)}</div>
+                <div className="badges">
+                  {Array.isArray(r.distances) && r.distances.length > 0 && <span className="badge">{r.distances.join(' / ')}</span>}
+                  {r.pbFriendly && <span className="badge good">PB-friendly</span>}
+                </div>
+                <div className="card-actions">
+                  <a className="btn" href="#/gare">Cerca gare</a>
+                  <button className="btn secondary" onClick={()=>onQuickSearch({ country:r.country })}>Vedi in {r.country}</button>
+                </div>
               </div>
-              <div className="card-actions">
-                <a className="btn" href="#/gare">Cerca gare</a>
-                <button className="btn secondary" onClick={()=>onQuickSearch({ country:r.country })}>Vedi in {r.country}</button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="section">
         <h2>Guide essenziali</h2>
-        <div className="empty">Template pronto. Puoi collegare il CMS in seguito.</div>
+        <div className="empty">Template pronto. Potrai collegare il CMS in seguito.</div>
       </div>
     </>
   );
@@ -819,7 +776,7 @@ function AboutView() {
       <div className="section">
         <h2>Roadmap</h2>
         <ul>
-          <li>🔌 Collegamento al DB gare reale (provider)</li>
+          <li>🔌 Collegamento al DB gare reale (provider) — fatto</li>
           <li>🗺️ Scheda gara estesa (Percorso, Logistica, Meteo storico)</li>
           <li>❤️ Wishlist & alert email</li>
           <li>🌍 Localizzazioni (IT/EN/FR/DE/ES)</li>
@@ -875,3 +832,4 @@ export default function App() {
     </>
   );
 }
+
