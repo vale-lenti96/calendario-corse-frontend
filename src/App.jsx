@@ -30,14 +30,14 @@ main{padding:16px 0 60px}
 
 /* HOME — Hero fullscreen senza top bar */
 .hero-full{
-  position:relative; min-height:85svh; width:100%;
+  position:relative; min-height:80svh; width:100%;
   display:flex; flex-direction:column; justify-content:center; align-items:flex-start;
   gap:16px; padding:80px 26px; color:#fff; overflow:hidden;
   background-image:url('/runner-sunset.jpg'); background-size:cover; background-position:center;
 }
 .hero-full::after{content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,.45), rgba(0,0,0,.25))}
 .hero-content{position:relative; z-index:1; max-width:860px; text-align:center}
-.hero-title{margin:0; font-size:56px; line-height:1.02; letter-spacing:-.5px}
+.hero-title{margin:0; font-size:56px; line-height:1.02; letter-spacing:-.5px; text-align:center}
 .hero-sub{margin:8px 0 0 0; font-size:18px; color:#EFEFEF}
 .hero-actions{display:flex; gap:12px; flex-wrap:wrap; margin-top:14px}
 .btn{background:var(--primary); color:#fff; border:0; border-radius:12px; padding:14px 16px; font-weight:700}
