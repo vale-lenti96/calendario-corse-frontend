@@ -1,15 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 
-/**
- * Runshift — Home (nuova) + Search + Race Details + Build‑Up Planner
- * - Tema: sfondo bianco, testo nero, pulsanti verde scuro (dark autumn)
- * - Router hash: #/home, #/search, #/race?id=..., #/build?targetId=...
- * - Nessun import di CSS esterni (stili inline via <style>)
- */
-
 const API_BASE = "https://backend-db-corse-v2.onrender.com";
 
-/* ============================ STILI (inline) ============================ */
+/* ============================ STILI ============================ */
 const CSS = `
 :root{
   --bg:#FFFFFF; --text:#0A0A0A; --muted:#585858; --border:#E6E6E0;
@@ -20,8 +13,8 @@ const CSS = `
 body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
 a{color:inherit;text-decoration:none} button{font:inherit;cursor:pointer}
 
-/* header */
-.header{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.9);backdrop-filter:saturate(140%) blur(8px);border-bottom:1px solid var(--border)}
+/* header standard (per pagine non-home) */
+.header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.9);backdrop-filter:saturate(140%) blur(8px);border-bottom:1px solid var(--border)}
 .header-inner{max-width:1280px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:68px;padding:0 20px}
 .brand{display:flex;align-items:center;gap:10px;font-weight:800}
 .logo{width:30px;height:30px;border-radius:7px;background:conic-gradient(from 190deg,#0B5D41,#0F6A4A,#0B5D41);position:relative}
@@ -34,22 +27,40 @@ a{color:inherit;text-decoration:none} button{font:inherit;cursor:pointer}
 
 main{padding:16px 0 60px} .container{max-width:1280px;margin:0 auto;padding:0 20px}
 
-/* HOME — Hero con sfondo */
-.hero{
-  position:relative;
-  min-height:60vh;
-  display:flex;flex-direction:column;justify-content:center;
-  gap:12px;border:1px solid var(--border);border-radius:22px;padding:56px 26px;
-  overflow:hidden;color:#fff;
-  background-image:url('/hero-bg.jpg');background-size:cover;background-position:center;
+/* HOME — Hero fullscreen */
+.hero-full{
+  position:relative; min-height:100svh; width:100%;
+  display:flex; flex-direction:column; justify-content:center; align-items:flex-start;
+  gap:16px; padding:80px 26px; color:#fff; overflow:hidden;
+  background-image:url('/runner-sunset.jpg'); background-size:cover; background-position:center;
 }
-.hero::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.45),rgba(0,0,0,.25))}
-.hero > *{position:relative;z-index:1}
-.hero h1{margin:0 0 6px 0;font-size:46px;line-height:1.05;letter-spacing:-.3px}
-.hero p{margin:0;color:#ECECEC}
-.hero-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.hero-full::after{content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,.45), rgba(0,0,0,.25))}
+.hero-content{position:relative; z-index:1; max-width:960px}
+.hero-title{margin:0; font-size:56px; line-height:1.02; letter-spacing:-.5px}
+.hero-sub{margin:8px 0 0 0; font-size:18px; color:#EFEFEF}
+.hero-actions{display:flex; gap:12px; flex-wrap:wrap; margin-top:14px}
+.btn{background:var(--primary); color:#fff; border:0; border-radius:12px; padding:14px 16px; font-weight:700}
+.btn:hover{background:var(--primary-600)}
+.btn.secondary{background:#fff; color:#0A0A0A; border:1px solid var(--border)}
+.btn.ghost{background:transparent; border:1px dashed var(--border); color:#0A0A0A}
 
-/* sezioni */
+/* Hamburger (home only) */
+.hamburger{
+  position:fixed; top:18px; right:18px; z-index:30;
+  width:48px; height:48px; border-radius:12px; border:1px solid rgba(255,255,255,.4);
+  background:rgba(0,0,0,.35); color:#fff; display:flex; align-items:center; justify-content:center;
+  backdrop-filter: blur(6px);
+}
+.bar{width:22px; height:2px; background:#fff; display:block; margin:3px 0}
+
+/* Overlay menu */
+.overlay{position:fixed; inset:0; z-index:40; background:rgba(0,0,0,.5); display:flex; justify-content:flex-end}
+.drawer{width:min(88vw,360px); height:100%; background:#fff; border-left:1px solid var(--border); padding:18px; display:flex; flex-direction:column; gap:10px}
+.drawer a{padding:12px 14px; border-radius:10px; color:#0A0A0A}
+.drawer a:hover{background:var(--surface)}
+.drawer .close{align-self:flex-end; border:1px solid var(--border); background:#fff; color:#0A0A0A; border-radius:10px; padding:8px 12px}
+
+/* sezioni generiche */
 .section{background:#fff;border:1px solid var(--border);border-radius:20px;padding:18px;margin:14px 0}
 .section.bg-soft{background-image:url('/section-bg.jpg');background-size:cover;background-position:center}
 .section h2{margin:0 0 10px 0;font-size:22px}
@@ -60,12 +71,7 @@ main{padding:16px 0 60px} .container{max-width:1280px;margin:0 auto;padding:0 20
 .group{display:flex;flex-direction:column} .label{font-size:12px;color:var(--muted);margin-bottom:6px}
 .search-bar{display:grid;grid-template-columns:1.2fr .7fr .8fr .8fr .7fr auto;gap:10px}
 
-/* pulsanti */
-.btn{background:var(--primary);color:#fff;border:0;border-radius:12px;padding:12px 14px;font-weight:700}
-.btn:hover{background:var(--primary-600)} .btn.secondary{background:#fff;color:#0A0A0A;border:1px solid var(--border)}
-.btn.ghost{background:transparent;border:1px dashed var(--border);color:#0A0A0A}
-
-/* cards list */
+/* cards */
 .list{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .card{background:linear-gradient(180deg,#fff,#fbfbf9);border:1px solid var(--border);border-radius:16px;padding:14px;box-shadow:0 4px 18px rgba(0,0,0,.04)}
 .card h3{margin:0 0 4px 0;font-size:16px}
@@ -75,7 +81,7 @@ main{padding:16px 0 60px} .container{max-width:1280px;margin:0 auto;padding:0 20
 .badge.good{background:rgba(19,121,91,.10);border-color:transparent;color:#0B5D41}
 .card-actions{display:flex;gap:8px;margin-top:10px} .card-actions .btn{padding:8px 10px;font-size:13px}
 
-/* vuoti + modale */
+/* empty + modal */
 .empty{text-align:center;padding:26px;border:1px dashed var(--border);border-radius:14px;color:var(--muted)}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.28);display:flex;align-items:center;justify-content:center;padding:20px;z-index:30}
 .sheet{max-width:960px;width:100%;border-radius:18px;background:#fff;border:1px solid var(--border);color:#0A0A0A}
@@ -96,39 +102,23 @@ main{padding:16px 0 60px} .container{max-width:1280px;margin:0 auto;padding:0 20
 @media (max-width:740px){.search-bar{grid-template-columns:1fr 1fr}.list{grid-template-columns:1fr}.nav{display:none}}
 `;
 
-/* ============================ ROUTER ============================ */
-function parseHash(){
-  const raw = window.location.hash || '#/home';
-  const [p,q] = raw.replace(/^#/, '').split('?');
-  return { path: p || '/home', query: new URLSearchParams(q||'') };
-}
-function nav(path, params){ const qs = params?`?${new URLSearchParams(params).toString()}`:''; window.location.hash = `${path}${qs}`; }
-
-/* ============================ UTILS ============================ */
-const fmtDate = (iso) => { if(!iso) return ''; try{ return new Date(iso).toLocaleDateString(undefined,{day:'2-digit',month:'short',year:'numeric'}) }catch{ return iso } };
-const addDays = (iso, d)=>{ const x=new Date(iso); x.setDate(x.getDate()+d); return x.toISOString().slice(0,10); };
-const hasKm = (race, km)=> (race.distances||[]).some(v=>String(v).includes(km));
+/* ============================ ROUTER + UTILS ============================ */
+function parseHash(){ const raw=window.location.hash||'#/home'; const [p,q]=raw.replace(/^#/,'').split('?'); return {path:p||'/home', query:new URLSearchParams(q||'')} }
+function nav(path,params){ const qs=params?`?${new URLSearchParams(params).toString()}`:''; window.location.hash=`${path}${qs}` }
+const fmtDate=(iso)=>{ if(!iso) return ''; try{ return new Date(iso).toLocaleDateString(undefined,{day:'2-digit',month:'short',year:'numeric'}) }catch{ return iso }};
+const addDays=(iso,d)=>{ const x=new Date(iso); x.setDate(x.getDate()+d); return x.toISOString().slice(0,10) };
+const hasKm=(race,km)=> (race.distances||[]).some(v=>String(v).includes(km));
 
 /* ============================ API ============================ */
-const RaceAPI = {
-  async search(params){
-    const url = `${API_BASE}/api/races?` + new URLSearchParams(params||{}).toString();
-    const r = await fetch(url,{headers:{Accept:'application/json'}}).catch(()=>null);
-    if(!r || !r.ok) return { races:[], total:0 };
-    const data = await r.json().catch(()=>({races:[],total:0}));
-    return { races: data.races||[], total: data.total||0 };
-  },
-  async getById(id){
-    const r = await fetch(`${API_BASE}/api/races/${encodeURIComponent(id)}`,{headers:{Accept:'application/json'}}).catch(()=>null);
-    if(!r || !r.ok) return null;
-    return await r.json().catch(()=>null);
-  }
+const RaceAPI={
+  async search(params){ const url=`${API_BASE}/api/races?`+new URLSearchParams(params||{}).toString(); const r=await fetch(url,{headers:{Accept:'application/json'}}).catch(()=>null); if(!r||!r.ok) return {races:[],total:0}; const d=await r.json().catch(()=>({races:[],total:0})); return {races:d.races||[], total:d.total||0}; },
+  async getById(id){ const r=await fetch(`${API_BASE}/api/races/${encodeURIComponent(id)}`,{headers:{Accept:'application/json'}}).catch(()=>null); if(!r||!r.ok) return null; return await r.json().catch(()=>null); }
 };
 
-/* ============================ LAYOUT ============================ */
+/* ============================ HEADER (pagine non-home) ============================ */
 function Header({ route }){
-  const tab = route.path.replace(/^\//,'');
-  const link = (href,label)=><a href={`#${href}`} className={tab===href.replace(/^\//,'')?'active':''}>{label}</a>;
+  const tab=route.path.replace(/^\//,'');
+  const link=(href,label)=><a href={`#${href}`} className={tab===href.replace(/^\//,'')?'active':''}>{label}</a>;
   return (
     <header className="header">
       <div className="header-inner">
@@ -141,84 +131,91 @@ function Header({ route }){
     </header>
   );
 }
-function Footer(){
+
+/* ============================ HAMBURGER + MENU OVERLAY (home) ============================ */
+function HomeMenu({ open, onClose }){
+  if(!open) return null;
   return (
-    <footer className="footer">
-      <div className="container" style={{display:'flex',justifyContent:'space-between',gap:14,flexWrap:'wrap'}}>
-        <div>© {new Date().getFullYear()} Runshift</div>
-        <div style={{display:'flex',gap:12}}>
-          <a href="#/privacy">Privacy</a><a href="#/cookies">Cookie</a><a href="#/contatti">Contatti</a>
-        </div>
+    <div className="overlay" onClick={onClose}>
+      <div className="drawer" onClick={(e)=>e.stopPropagation()}>
+        <button className="close" onClick={onClose}>Chiudi ✕</button>
+        <a href="#/search" onClick={onClose}>Gare</a>
+        <a href="#/build" onClick={onClose}>Build‑Up</a>
+        <a href="#/about" onClick={onClose}>About</a>
       </div>
-    </footer>
+    </div>
   );
 }
 
 /* ============================ HOME ============================ */
 function Home({ onQuick }){
   const [featured,setFeatured]=useState([]);
+  const [menuOpen,setMenuOpen]=useState(false);
   useEffect(()=>{(async()=>{ const d=await RaceAPI.search({limit:6,orderBy:'date_start',orderDir:'asc'}); setFeatured(d.races||[]); })()},[]);
   return (
-    <div className="container">
-      <section className="hero">
-        <h1>Corri. Scopri. Superati.</h1>
-        <p>Trova la tua prossima sfida, costruisci il tuo percorso e vivi l’avventura della corsa.</p>
-        <div className="hero-actions">
-          <button className="btn" onClick={()=>onQuick({})}>Trova la tua gara</button>
-          <button className="btn secondary" onClick={()=>onQuick({surface:'trail'})}>Esplora trail</button>
+    <>
+      {/* Hero fullscreen senza top bar; hamburger in alto a destra */}
+      <section className="hero-full">
+        <button className="hamburger" aria-label="Apri menu" onClick={()=>setMenuOpen(true)}>
+          <span className="bar"/><span className="bar"/><span className="bar"/>
+        </button>
+        <div className="hero-content">
+          <h1 className="hero-title">Corri. Scopri. Superati.</h1>
+          <p className="hero-sub">Trova la tua prossima sfida, costruisci il tuo percorso e vivi l’avventura della corsa.</p>
+          <div className="hero-actions">
+            <button className="btn" onClick={()=>onQuick({})}>Trova la tua gara</button>
+            <button className="btn secondary" onClick={()=>onQuick({surface:'trail'})}>Esplora trail</button>
+          </div>
         </div>
       </section>
 
-      <div className="section bg-soft">
-        <h2>Gare in evidenza</h2>
-        {featured.length===0? <div className="empty">Nessun evento da mostrare.</div> :
-          <div className="list">
-            {featured.map(r=>(
-              <div className="card" key={r.id}>
-                <div className="thumb" />
-                <h3>{r.name}</h3>
-                <div className="meta">{r.city} • {r.country} • {fmtDate(r.dateStart)}</div>
-                <div className="badges">
-                  {Array.isArray(r.distances)&&r.distances.length>0 && <span className="badge">{r.distances.join(' / ')}</span>}
-                </div>
-                <div className="card-actions">
-                  <a className="btn" href={`#/race?id=${encodeURIComponent(r.id)}`}>Dettagli</a>
-                  <button className="btn secondary" onClick={()=>nav('/build',{targetId:r.id})}>Inizia il percorso</button>
-                </div>
-              </div>
-            ))}
-          </div>}
-      </div>
+      <HomeMenu open={menuOpen} onClose={()=>setMenuOpen(false)} />
 
-      <div className="section" style={{backgroundImage:'url("/paper-texture.jpg")',backgroundSize:'cover'}}>
-        <h2>Perché Runshift</h2>
-        <div className="list" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
-          {[
-            {t:'🌍 Esplora',d:'Migliaia di gare nel mondo'},
-            {t:'🏔 Vivi l’avventura',d:'Dalle strade ai trail epici'},
-            {t:'⏱ Superati',d:'Pianifica e raggiungi obiettivi'},
-          ].map((k,i)=>(
-            <div key={i} className="card"><h3>{k.t}</h3><p className="meta">{k.d}</p></div>
-          ))}
+      {/* Sezione gare in evidenza (dopo la hero) */}
+      <div className="container">
+        <div className="section bg-soft">
+          <h2>Gare in evidenza</h2>
+          {featured.length===0? <div className="empty">Nessun evento da mostrare.</div> :
+            <div className="list">
+              {featured.map(r=>(
+                <div className="card" key={r.id}>
+                  <div className="thumb" />
+                  <h3>{r.name}</h3>
+                  <div className="meta">{r.city} • {r.country} • {fmtDate(r.dateStart)}</div>
+                  <div className="badges">
+                    {Array.isArray(r.distances)&&r.distances.length>0 && <span className="badge">{r.distances.join(' / ')}</span>}
+                  </div>
+                  <div className="card-actions">
+                    <a className="btn" href={`#/race?id=${encodeURIComponent(r.id)}`}>Dettagli</a>
+                    <button className="btn secondary" onClick={()=>nav('/build',{targetId:r.id})}>Inizia il percorso</button>
+                  </div>
+                </div>
+              ))}
+            </div>}
+        </div>
+
+        <div className="section" style={{backgroundImage:'url("/paper-texture.jpg")',backgroundSize:'cover'}}>
+          <h2>Perché Runshift</h2>
+          <div className="list" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
+            {[
+              {t:'🌍 Esplora',d:'Migliaia di gare nel mondo'},
+              {t:'🏔 Vivi l’avventura',d:'Dalle strade ai trail epici'},
+              {t:'⏱ Superati',d:'Pianifica e raggiungi obiettivi'},
+            ].map((k,i)=>(
+              <div key={i} className="card"><h3>{k.t}</h3><p className="meta">{k.d}</p></div>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
-/* ============================ SEARCH ============================ */
+/* ============================ SEARCH + RACE DETAILS + BUILD-UP (immutati) ============================ */
 function SearchBar({initial,facets,onSearch}){
-  const [q,setQ]=useState(initial.q||'');
-  const [distance,setDistance]=useState(initial.distance||'');
-  const [country,setCountry]=useState(initial.country||'');
-  const [surface,setSurface]=useState(initial.surface||'');
-  const [dateFrom,setDateFrom]=useState(initial.dateFrom||'');
-  const [dateTo,setDateTo]=useState(initial.dateTo||'');
-
-  const submit=(e)=>{e.preventDefault();
-    const p={q,distance,country,surface,dateFrom,dateTo,page:1,limit:60}; Object.keys(p).forEach(k=>!p[k]&&delete p[k]); onSearch(p);
-  };
-
+  const [q,setQ]=useState(initial.q||''); const [distance,setDistance]=useState(initial.distance||''); const [country,setCountry]=useState(initial.country||'');
+  const [surface,setSurface]=useState(initial.surface||''); const [dateFrom,setDateFrom]=useState(initial.dateFrom||''); const [dateTo,setDateTo]=useState(initial.dateTo||'');
+  const submit=(e)=>{e.preventDefault(); const p={q,distance,country,surface,dateFrom,dateTo,page:1,limit:60}; Object.keys(p).forEach(k=>!p[k]&&delete p[k]); onSearch(p);};
   return (
     <form className="section" onSubmit={submit}>
       <h2>Trova la tua prossima gara</h2>
@@ -253,36 +250,22 @@ function SearchPage({ route }){
   const q=route.query.get('q')||''; const distance=route.query.get('distance')||''; const country=route.query.get('country')||'';
   const surface=route.query.get('surface')||''; const dateFrom=route.query.get('dateFrom')||''; const dateTo=route.query.get('dateTo')||'';
   const pageParam=parseInt(route.query.get('page')||'1',10); const limitParam=parseInt(route.query.get('limit')||'60',10);
-
-  const [facets,setFacets]=useState({distances:[],surfaces:[]});
-  const [loading,setLoading]=useState(false); const [races,setRaces]=useState([]); const [total,setTotal]=useState(0);
+  const [facets,setFacets]=useState({distances:[],surfaces:[]}); const [loading,setLoading]=useState(false); const [races,setRaces]=useState([]); const [total,setTotal]=useState(0);
   const [page,setPage]=useState(pageParam); const limit=limitParam;
 
-  // facet dinamici dal DB (per evitare mismatch)
-  useEffect(()=>{(async()=>{
-    const d=await RaceAPI.search({limit:400,orderBy:'date_start',orderDir:'asc'});
-    const all=d.races||[]; const uniq=a=>Array.from(new Set(a.filter(Boolean)));
-    const distances=uniq(all.map(r=>(r.distances&&r.distances[0])? String(r.distances[0]).replace(/[^0-9.,]/g,'').replace(',','.') : '').filter(Boolean))
-      .sort((a,b)=>parseFloat(a)-parseFloat(b));
-    const surfaces=uniq(all.map(r=>r.surface)).sort();
-    setFacets({distances,surfaces});
-  })()},[]);
+  useEffect(()=>{(async()=>{ const d=await RaceAPI.search({limit:400,orderBy:'date_start',orderDir:'asc'}); const all=d.races||[]; const uniq=a=>Array.from(new Set(a.filter(Boolean)));
+    const distances=uniq(all.map(r=>(r.distances&&r.distances[0])? String(r.distances[0]).replace(/[^0-9.,]/g,'').replace(',','.') : '').filter(Boolean)).sort((a,b)=>parseFloat(a)-parseFloat(b));
+    const surfaces=uniq(all.map(r=>r.surface)).sort(); setFacets({distances,surfaces}); })()},[]);
 
-  const run=async(params,pageTo,append=false)=>{
-    setLoading(true);
-    const d=await RaceAPI.search({...params,page:pageTo,limit,orderBy:'date_start',orderDir:'asc'});
-    setRaces(prev=>append?[...prev,...(d.races||[])]: (d.races||[]));
-    setTotal(d.total||0); setLoading(false);
-  };
+  const run=async(params,pageTo,append=false)=>{ setLoading(true); const d=await RaceAPI.search({...params,page:pageTo,limit,orderBy:'date_start',orderDir:'asc'}); setRaces(prev=>append?[...prev,...(d.races||[])]: (d.races||[])); setTotal(d.total||0); setLoading(false); };
   useEffect(()=>{ const p={}; for(const [k,v] of route.query.entries()) p[k]=v; setPage(pageParam); run(p,pageParam,false); /* eslint-disable-next-line */ },[route.path,route.query.toString()]);
   const onSearch=(p)=>nav('/search',p);
-
   const loadMore=async()=>{ const p={}; for(const [k,v] of route.query.entries()) p[k]=v; const next=page+1; setPage(next); await run(p,next,true); };
-  const initial=useMemo(()=>({q,distance,country,surface,dateFrom,dateTo}),[q,distance,country,surface,dateFrom,dateTo]);
+  const initial={q,distance,country,surface,dateFrom,dateTo};
 
   return (
     <div className="container">
-      <SearchBar initial={initial} facets={facets} onSearch={onSearch}/>
+      <SearchBar initial={initial} facets={setFacets?facets:{}} onSearch={onSearch}/>
       <div className="section">
         <h2>Risultati {loading?'…':`(${total})`}</h2>
         {loading && races.length===0 ? <div className="empty">Carico le gare…</div> :
@@ -314,7 +297,6 @@ function SearchPage({ route }){
   );
 }
 
-/* ============================ RACE DETAILS ============================ */
 function RaceDetails({ route }){
   const id=route.query.get('id'); const [race,setRace]=useState(null);
   useEffect(()=>{(async()=>{ if(!id) return; const r=await RaceAPI.getById(id); setRace(r); })()},[id]);
@@ -353,7 +335,6 @@ function RaceDetails({ route }){
   );
 }
 
-/* ============================ BUILD‑UP ============================ */
 const SLOT_DEFS=[
   {key:'s5', label:'Test 5K', km:'5',  weeksMin:2, weeksMax:4},
   {key:'s10',label:'Tune‑up 10K', km:'10', weeksMin:4, weeksMax:8},
@@ -370,7 +351,6 @@ function BuildPage({ route }){
 
   useEffect(()=>{(async()=>{ if(!targetId){setTarget(null);return;} const r=await RaceAPI.getById(targetId); setTarget(r); setSlots({}); })()},[targetId]);
 
-  // suggerimenti iniziali per slot (stessa distanza e finestra rispetto alla target)
   useEffect(()=>{(async()=>{
     if(!target) return;
     const plan={};
@@ -379,17 +359,14 @@ function BuildPage({ route }){
       const to  =addDays(target.dateStart, -def.weeksMin*7);
       const d=await RaceAPI.search({distance:def.km, dateFrom:from, dateTo:to, surface:target.surface||'', limit:80, orderBy:'date_start', orderDir:'asc'});
       const list=(d.races||[]).filter(x=>x.id!==target.id).filter(x=>hasKm(x,def.km));
-      plan[def.key]=list[0]||null; // primo suggerimento
+      plan[def.key]=list[0]||null;
     }
     setSlots(plan);
   })()},[target]);
 
-  const openAlt=async(key)=>{
-    if(!target) return;
-    const def=SLOT_DEFS.find(d=>d.key===key); if(!def) return;
+  const openAlt=async(key)=>{ if(!target) return; const def=SLOT_DEFS.find(d=>d.key===key); if(!def) return;
     setAltFor(key); setLoadingAlts(true);
-    const from=addDays(target.dateStart, -def.weeksMax*7);
-    const to  =addDays(target.dateStart, -def.weeksMin*7);
+    const from=addDays(target.dateStart,-def.weeksMax*7); const to=addDays(target.dateStart,-def.weeksMin*7);
     const d=await RaceAPI.search({distance:def.km, dateFrom:from, dateTo:to, surface:target.surface||'', limit:120, orderBy:'date_start', orderDir:'asc'});
     const alts=(d.races||[]).filter(x=>x.id!==target.id).filter(x=>hasKm(x,def.km));
     setAlternatives(alts); setLoadingAlts(false);
@@ -397,7 +374,7 @@ function BuildPage({ route }){
   const choose=(key,r)=>{ setSlots(prev=>({...prev,[key]:r})); setAltFor(null); setAlternatives([]); };
   const clearSlot=(key)=> setSlots(prev=>({...prev,[key]:null}));
 
-  if(!targetId) return <div className="container"><div className="hero"><h1>Build‑Up Planner</h1><p>Seleziona una gara target dalla pagina <a className="btn ghost" href="#/search" style={{padding:'4px 10px'}}>Gare</a>.</p></div></div>;
+  if(!targetId) return <div className="container"><div className="empty">Seleziona una gara target dalla pagina <a className="btn ghost" href="#/search" style={{padding:'4px 10px'}}>Gare</a>.</div></div>;
   if(!target) return <div className="container"><div className="empty">Carico gara target…</div></div>;
 
   const pos=[0.15,0.45,0.72,0.93];
@@ -493,7 +470,7 @@ function BuildPage({ route }){
   );
 }
 
-/* ============================ ABOUT (semplice) ============================ */
+/* ============================ ABOUT ============================ */
 function About(){
   return (
     <div className="container">
@@ -508,6 +485,9 @@ export default function App(){
   useEffect(()=>{ const h=()=>setRoute(parseHash()); window.addEventListener('hashchange',h); if(!window.location.hash) nav('/home'); return ()=>window.removeEventListener('hashchange',h); },[]);
   const base=route.path.split('/')[1]||'home';
 
+  // Su home: niente barra superiore (solo hamburger dentro la hero)
+  const showHeader = base !== 'home';
+
   let view=null;
   switch(base){
     case 'home':   view=<Home onQuick={(p)=>nav('/search',p)}/>; break;
@@ -516,13 +496,19 @@ export default function App(){
     case 'build':  view=<BuildPage route={route}/>; break;
     case 'about':  view=<About/>; break;
     default:
-      view=<div className="container"><div className="hero"><h1>Pagina non trovata</h1><p>Il percorso <code>{route.path}</code> non esiste.</p><div className="hero-actions"><a className="btn" href="#/home">Torna alla Home</a></div></div></div>;
+      view=<div className="container"><div className="section"><h2>Pagina non trovata</h2><p>Il percorso <code>{route.path}</code> non esiste.</p><div style={{marginTop:10}}><a className="btn" href="#/home">Torna alla Home</a></div></div></div>;
   }
 
   return (<>
     <style dangerouslySetInnerHTML={{__html:CSS}}/>
-    <Header route={route}/>
+    {showHeader && <Header route={route}/>}
     <main>{view}</main>
-    <Footer/>
+    {showHeader && <footer className="footer"><div className="container" style={{display:'flex',justifyContent:'space-between',gap:14,flexWrap:'wrap'}}><div>© {new Date().getFullYear()} Runshift</div><div style={{display:'flex',gap:12}}><a href="#/privacy">Privacy</a><a href="#/cookies">Cookie</a><a href="#/contatti">Contatti</a></div></div></footer>}
   </>);
 }
+
+/* ========== Helper components used above ========== */
+function SearchPage(){ return null } // placeholder to avoid reference error; real component defined above
+function RaceDetails(){ return null }
+function BuildPage(){ return null }
+
