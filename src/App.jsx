@@ -25,9 +25,10 @@ a{color:inherit;text-decoration:none} button{font:inherit;cursor:pointer}
 .cta{background:var(--primary);color:#fff;border:0;padding:10px 14px;border-radius:12px;box-shadow:0 4px 14px rgba(11,93,65,.2)}
 .cta:hover{background:var(--primary-600)}
 
-main{padding:16px 0 60px} .container{max-width:1280px;margin:0 auto;padding:0 20px}
+main{padding:16px 0 60px}
+.container{max-width:1280px;margin:0 auto;padding:0 20px}
 
-/* HOME — Hero fullscreen */
+/* HOME — Hero fullscreen senza top bar */
 .hero-full{
   position:relative; min-height:100svh; width:100%;
   display:flex; flex-direction:column; justify-content:center; align-items:flex-start;
@@ -103,22 +104,37 @@ main{padding:16px 0 60px} .container{max-width:1280px;margin:0 auto;padding:0 20
 `;
 
 /* ============================ ROUTER + UTILS ============================ */
-function parseHash(){ const raw=window.location.hash||'#/home'; const [p,q]=raw.replace(/^#/,'').split('?'); return {path:p||'/home', query:new URLSearchParams(q||'')} }
-function nav(path,params){ const qs=params?`?${new URLSearchParams(params).toString()}`:''; window.location.hash=`${path}${qs}` }
-const fmtDate=(iso)=>{ if(!iso) return ''; try{ return new Date(iso).toLocaleDateString(undefined,{day:'2-digit',month:'short',year:'numeric'}) }catch{ return iso }};
-const addDays=(iso,d)=>{ const x=new Date(iso); x.setDate(x.getDate()+d); return x.toISOString().slice(0,10) };
-const hasKm=(race,km)=> (race.distances||[]).some(v=>String(v).includes(km));
+function parseHash(){
+  const raw = window.location.hash || '#/home';
+  const [p,q] = raw.replace(/^#/, '').split('?');
+  return { path: p || '/home', query: new URLSearchParams(q||'') };
+}
+function nav(path, params){ const qs = params?`?${new URLSearchParams(params).toString()}`:''; window.location.hash = `${path}${qs}`; }
+
+const fmtDate = (iso) => { if(!iso) return ''; try{ return new Date(iso).toLocaleDateString(undefined,{day:'2-digit',month:'short',year:'numeric'}) }catch{ return iso } };
+const addDays = (iso, d)=>{ const x=new Date(iso); x.setDate(x.getDate()+d); return x.toISOString().slice(0,10); };
+const hasKm = (race, km)=> (race.distances||[]).some(v=>String(v).includes(km));
 
 /* ============================ API ============================ */
-const RaceAPI={
-  async search(params){ const url=`${API_BASE}/api/races?`+new URLSearchParams(params||{}).toString(); const r=await fetch(url,{headers:{Accept:'application/json'}}).catch(()=>null); if(!r||!r.ok) return {races:[],total:0}; const d=await r.json().catch(()=>({races:[],total:0})); return {races:d.races||[], total:d.total||0}; },
-  async getById(id){ const r=await fetch(`${API_BASE}/api/races/${encodeURIComponent(id)}`,{headers:{Accept:'application/json'}}).catch(()=>null); if(!r||!r.ok) return null; return await r.json().catch(()=>null); }
+const RaceAPI = {
+  async search(params){
+    const url = `${API_BASE}/api/races?` + new URLSearchParams(params||{}).toString();
+    const r = await fetch(url,{headers:{Accept:'application/json'}}).catch(()=>null);
+    if(!r || !r.ok) return { races:[], total:0 };
+    const data = await r.json().catch(()=>({races:[],total:0}));
+    return { races: data.races||[], total: data.total||0 };
+  },
+  async getById(id){
+    const r = await fetch(`${API_BASE}/api/races/${encodeURIComponent(id)}`,{headers:{Accept:'application/json'}}).catch(()=>null);
+    if(!r || !r.ok) return null;
+    return await r.json().catch(()=>null);
+  }
 };
 
 /* ============================ HEADER (pagine non-home) ============================ */
 function Header({ route }){
   const tab=route.path.replace(/^\//,'');
-  const link=(href,label)=><a href={`#${href}`} className={tab===href.replace(/^\//,'')?'active':''}>{label}</a>;
+  const link = (href,label)=><a href={`#${href}`} className={tab===href.replace(/^\//,'')?'active':''}>{label}</a>;
   return (
     <header className="header">
       <div className="header-inner">
@@ -211,11 +227,19 @@ function Home({ onQuick }){
   );
 }
 
-/* ============================ SEARCH + RACE DETAILS + BUILD-UP (immutati) ============================ */
+/* ============================ SEARCH ============================ */
 function SearchBar({initial,facets,onSearch}){
-  const [q,setQ]=useState(initial.q||''); const [distance,setDistance]=useState(initial.distance||''); const [country,setCountry]=useState(initial.country||'');
-  const [surface,setSurface]=useState(initial.surface||''); const [dateFrom,setDateFrom]=useState(initial.dateFrom||''); const [dateTo,setDateTo]=useState(initial.dateTo||'');
-  const submit=(e)=>{e.preventDefault(); const p={q,distance,country,surface,dateFrom,dateTo,page:1,limit:60}; Object.keys(p).forEach(k=>!p[k]&&delete p[k]); onSearch(p);};
+  const [q,setQ]=useState(initial.q||'');
+  const [distance,setDistance]=useState(initial.distance||'');
+  const [country,setCountry]=useState(initial.country||'');
+  const [surface,setSurface]=useState(initial.surface||'');
+  const [dateFrom,setDateFrom]=useState(initial.dateFrom||'');
+  const [dateTo,setDateTo]=useState(initial.dateTo||'');
+
+  const submit=(e)=>{e.preventDefault();
+    const p={q,distance,country,surface,dateFrom,dateTo,page:1,limit:60}; Object.keys(p).forEach(k=>!p[k]&&delete p[k]); onSearch(p);
+  };
+
   return (
     <form className="section" onSubmit={submit}>
       <h2>Trova la tua prossima gara</h2>
@@ -250,22 +274,36 @@ function SearchPage({ route }){
   const q=route.query.get('q')||''; const distance=route.query.get('distance')||''; const country=route.query.get('country')||'';
   const surface=route.query.get('surface')||''; const dateFrom=route.query.get('dateFrom')||''; const dateTo=route.query.get('dateTo')||'';
   const pageParam=parseInt(route.query.get('page')||'1',10); const limitParam=parseInt(route.query.get('limit')||'60',10);
-  const [facets,setFacets]=useState({distances:[],surfaces:[]}); const [loading,setLoading]=useState(false); const [races,setRaces]=useState([]); const [total,setTotal]=useState(0);
+
+  const [facets,setFacets]=useState({distances:[],surfaces:[]});
+  const [loading,setLoading]=useState(false); const [races,setRaces]=useState([]); const [total,setTotal]=useState(0);
   const [page,setPage]=useState(pageParam); const limit=limitParam;
 
-  useEffect(()=>{(async()=>{ const d=await RaceAPI.search({limit:400,orderBy:'date_start',orderDir:'asc'}); const all=d.races||[]; const uniq=a=>Array.from(new Set(a.filter(Boolean)));
-    const distances=uniq(all.map(r=>(r.distances&&r.distances[0])? String(r.distances[0]).replace(/[^0-9.,]/g,'').replace(',','.') : '').filter(Boolean)).sort((a,b)=>parseFloat(a)-parseFloat(b));
-    const surfaces=uniq(all.map(r=>r.surface)).sort(); setFacets({distances,surfaces}); })()},[]);
+  // facet dinamici dal DB (per evitare mismatch)
+  useEffect(()=>{(async()=>{
+    const d=await RaceAPI.search({limit:400,orderBy:'date_start',orderDir:'asc'});
+    const all=d.races||[]; const uniq=a=>Array.from(new Set(a.filter(Boolean)));
+    const distances=uniq(all.map(r=>(r.distances&&r.distances[0])? String(r.distances[0]).replace(/[^0-9.,]/g,'').replace(',','.') : '').filter(Boolean))
+      .sort((a,b)=>parseFloat(a)-parseFloat(b));
+    const surfaces=uniq(all.map(r=>r.surface)).sort();
+    setFacets({distances,surfaces});
+  })()},[]);
 
-  const run=async(params,pageTo,append=false)=>{ setLoading(true); const d=await RaceAPI.search({...params,page:pageTo,limit,orderBy:'date_start',orderDir:'asc'}); setRaces(prev=>append?[...prev,...(d.races||[])]: (d.races||[])); setTotal(d.total||0); setLoading(false); };
+  const run=async(params,pageTo,append=false)=>{
+    setLoading(true);
+    const d=await RaceAPI.search({...params,page:pageTo,limit,orderBy:'date_start',orderDir:'asc'});
+    setRaces(prev=>append?[...prev,...(d.races||[])]: (d.races||[]));
+    setTotal(d.total||0); setLoading(false);
+  };
   useEffect(()=>{ const p={}; for(const [k,v] of route.query.entries()) p[k]=v; setPage(pageParam); run(p,pageParam,false); /* eslint-disable-next-line */ },[route.path,route.query.toString()]);
   const onSearch=(p)=>nav('/search',p);
+
   const loadMore=async()=>{ const p={}; for(const [k,v] of route.query.entries()) p[k]=v; const next=page+1; setPage(next); await run(p,next,true); };
-  const initial={q,distance,country,surface,dateFrom,dateTo};
+  const initial=useMemo(()=>({q,distance,country,surface,dateFrom,dateTo}),[q,distance,country,surface,dateFrom,dateTo]);
 
   return (
     <div className="container">
-      <SearchBar initial={initial} facets={setFacets?facets:{}} onSearch={onSearch}/>
+      <SearchBar initial={initial} facets={facets} onSearch={onSearch}/>
       <div className="section">
         <h2>Risultati {loading?'…':`(${total})`}</h2>
         {loading && races.length===0 ? <div className="empty">Carico le gare…</div> :
@@ -297,6 +335,7 @@ function SearchPage({ route }){
   );
 }
 
+/* ============================ RACE DETAILS ============================ */
 function RaceDetails({ route }){
   const id=route.query.get('id'); const [race,setRace]=useState(null);
   useEffect(()=>{(async()=>{ if(!id) return; const r=await RaceAPI.getById(id); setRace(r); })()},[id]);
@@ -335,6 +374,7 @@ function RaceDetails({ route }){
   );
 }
 
+/* ============================ BUILD‑UP ============================ */
 const SLOT_DEFS=[
   {key:'s5', label:'Test 5K', km:'5',  weeksMin:2, weeksMax:4},
   {key:'s10',label:'Tune‑up 10K', km:'10', weeksMin:4, weeksMax:8},
@@ -351,6 +391,7 @@ function BuildPage({ route }){
 
   useEffect(()=>{(async()=>{ if(!targetId){setTarget(null);return;} const r=await RaceAPI.getById(targetId); setTarget(r); setSlots({}); })()},[targetId]);
 
+  // suggerimenti iniziali per slot (stessa distanza e finestra rispetto alla target)
   useEffect(()=>{(async()=>{
     if(!target) return;
     const plan={};
@@ -359,14 +400,17 @@ function BuildPage({ route }){
       const to  =addDays(target.dateStart, -def.weeksMin*7);
       const d=await RaceAPI.search({distance:def.km, dateFrom:from, dateTo:to, surface:target.surface||'', limit:80, orderBy:'date_start', orderDir:'asc'});
       const list=(d.races||[]).filter(x=>x.id!==target.id).filter(x=>hasKm(x,def.km));
-      plan[def.key]=list[0]||null;
+      plan[def.key]=list[0]||null; // primo suggerimento
     }
     setSlots(plan);
   })()},[target]);
 
-  const openAlt=async(key)=>{ if(!target) return; const def=SLOT_DEFS.find(d=>d.key===key); if(!def) return;
+  const openAlt=async(key)=>{
+    if(!target) return;
+    const def=SLOT_DEFS.find(d=>d.key===key); if(!def) return;
     setAltFor(key); setLoadingAlts(true);
-    const from=addDays(target.dateStart,-def.weeksMax*7); const to=addDays(target.dateStart,-def.weeksMin*7);
+    const from=addDays(target.dateStart, -def.weeksMax*7);
+    const to  =addDays(target.dateStart, -def.weeksMin*7);
     const d=await RaceAPI.search({distance:def.km, dateFrom:from, dateTo:to, surface:target.surface||'', limit:120, orderBy:'date_start', orderDir:'asc'});
     const alts=(d.races||[]).filter(x=>x.id!==target.id).filter(x=>hasKm(x,def.km));
     setAlternatives(alts); setLoadingAlts(false);
@@ -506,9 +550,3 @@ export default function App(){
     {showHeader && <footer className="footer"><div className="container" style={{display:'flex',justifyContent:'space-between',gap:14,flexWrap:'wrap'}}><div>© {new Date().getFullYear()} Runshift</div><div style={{display:'flex',gap:12}}><a href="#/privacy">Privacy</a><a href="#/cookies">Cookie</a><a href="#/contatti">Contatti</a></div></div></footer>}
   </>);
 }
-
-/* ========== Helper components used above ========== */
-function SearchPage(){ return null } // placeholder to avoid reference error; real component defined above
-function RaceDetails(){ return null }
-function BuildPage(){ return null }
-
