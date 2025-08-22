@@ -37,9 +37,9 @@ main{padding:16px 0 60px}
 }
 .hero-full::after{content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,.45), rgba(0,0,0,.25))}
 .hero-content{position:relative; z-index:1; max-width:860px; text-align:center}
-.hero-title{margin:0; font-size:56px; line-height:1.02; letter-spacing:-.5px; text-align:center}
-.hero-sub{margin:8px 0 0 0; font-size:18px; color:#EFEFEF}
-.hero-actions{display:flex; gap:12px; flex-wrap:wrap; margin-top:14px}
+.hero-title{margin:0; font-size:48px; line-height:1.1; letter-spacing:-.5px}
+.hero-sub{margin:10px 0 0 0; font-size:18px; color:#EFEFEF}
+.hero-actions{display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-top:18px}
 .btn{background:var(--primary); color:#fff; border:0; border-radius:12px; padding:14px 16px; font-weight:700}
 .btn:hover{background:var(--primary-600)}
 .btn.secondary{background:#fff; color:#0A0A0A; border:1px solid var(--border)}
