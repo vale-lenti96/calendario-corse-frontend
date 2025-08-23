@@ -30,7 +30,7 @@ main{padding:16px 0 60px}
 
 /* HOME — Hero fullscreen senza top bar */
 .hero-full{
-  position:relative; min-height:80vh; width:100%;
+  position:relative; min-height:75vh; width:100%;
   display:flex; flex-direction:column; justify-content:center; align-items:center;
   gap:18px; padding:60px 26px; color:#fff; overflow:hidden;
   background-image:url('/runner-sunset.jpg'); background-size:cover; background-position:center;
