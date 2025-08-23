@@ -4,13 +4,31 @@ import "./App.css";
 // === Config API ===
 const API_URL = "https://backend-db-corse-v2.onrender.com";
 
+// === Utils ===
+function todayISO() {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+function safeDateToLocale(dateStr) {
+  if (!dateStr) return "";
+  // accetta 'YYYY-MM-DD' oppure ISO 'YYYY-MM-DDTHH:mm:ss'
+  const d = dateStr.length === 10 ? new Date(`${dateStr}T00:00:00`) : new Date(dateStr);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString();
+}
+
+function classNames(...a){ return a.filter(Boolean).join(" "); }
+
 // === API helpers ===
 async function fetchRaces({ country, city, distance, q, page = 1, limit = 24, fromDate, toDate }) {
   const params = new URLSearchParams();
   if (country) params.set("country", country);
   if (city) params.set("city", city);
   if (q) params.set("q", q);
-  if (distance) params.set("distance", String(distance)); // "contiene" lato backend (ILIKE %x%)
+  if (distance) params.set("distance", String(distance)); // "contiene" lato backend
   if (fromDate) params.set("fromDate", fromDate);
   if (toDate) params.set("toDate", toDate);
   params.set("page", page);
@@ -27,20 +45,28 @@ async function fetchRaceByUrl(raceUrl) {
   return r.json();
 }
 
-// === UI primitives ===
-function Burger({ onClick }) {
+// === Nav / Layout ===
+function TopBar({ onNav, view, setMenuOpen }) {
   return (
-    <button className="burger" aria-label="Menu" onClick={onClick}>
-      <span />
-      <span />
-      <span />
-    </button>
+    <div className="topbar">
+      <div className="container topbar__inner">
+        <button className="burger burger--inline" onClick={() => setMenuOpen(true)} aria-label="Menu">
+          <span/><span/><span/>
+        </button>
+        <div className="brand" onClick={() => onNav("home")} style={{cursor:"pointer"}}>Runshift</div>
+        <nav className="topbar__nav">
+          <button className={classNames("navlink", view==="home" && "active")} onClick={()=>onNav("home")}>Home</button>
+          <button className={classNames("navlink", view==="search" && "active")} onClick={()=>onNav("search")}>Cerca gare</button>
+          <button className={classNames("navlink", view==="build" && "active")} onClick={()=>onNav("build")}>Build plan</button>
+        </nav>
+      </div>
+    </div>
   );
 }
 
 function Offcanvas({ open, onClose, onNavigate }) {
   return (
-    <div className={`offcanvas ${open ? "open" : ""}`}>
+    <div className={classNames("offcanvas", open && "open")}>
       <div className="offcanvas__header">
         <div className="brand">Runshift</div>
         <button className="btn btn-outline" onClick={onClose}>Chiudi</button>
@@ -48,7 +74,7 @@ function Offcanvas({ open, onClose, onNavigate }) {
       <nav className="offcanvas__nav">
         <button className="link-like" onClick={() => { onNavigate("home"); onClose(); }}>Home</button>
         <button className="link-like" onClick={() => { onNavigate("search"); onClose(); }}>Cerca gare</button>
-        <button className="link-like" onClick={() => { onNavigate("build"); onClose(); }}>Build your plan</button>
+        <button className="link-like" onClick={() => { onNavigate("build"); onClose(); }}>Build plan</button>
       </nav>
       <div className="offcanvas__footer">© Runshift</div>
     </div>
@@ -59,11 +85,8 @@ function Offcanvas({ open, onClose, onNavigate }) {
 function Hero({ onPrimary, onSecondary }) {
   return (
     <section
-      className="hero"
-      style={{
-        // puoi sostituire l'immagine sotto con la tua in public/images/hero-runner-sunset.jpg
-        backgroundImage: `url(/public/runner-sunset.jpg)`,
-      }}
+      className="hero hero--tight"
+      style={{ backgroundImage: `url(/images/hero-runner-sunset.jpg)` }}
     >
       <div className="hero__scrim" />
       <div className="hero__content">
@@ -78,10 +101,10 @@ function Hero({ onPrimary, onSecondary }) {
   );
 }
 
-// === CARD GARA ===
+// === CARD GARA (immagine: preferisci sempre thumb, poi full, poi placeholder) ===
 function RaceCard({ race, onDetails, onSelect }) {
   const img = race.image_thumb_url || race.image_url || "/images/placeholder.jpg";
-  const dateStr = race.date ? new Date(race.date).toLocaleDateString() : "";
+  const dateStr = safeDateToLocale(race.date);
 
   return (
     <div className="race-card">
@@ -110,14 +133,11 @@ function RaceCard({ race, onDetails, onSelect }) {
 // === DETTAGLI GARA ===
 function RaceDetails({ race, onBack }) {
   if (!race) {
-    return (
-      <div className="container" style={{ padding: 24 }}>
-        <p>Caricamento…</p>
-      </div>
-    );
+    return <div className="container" style={{ padding: 24 }}><p>Caricamento…</p></div>;
   }
-  const img = race.image_url || race.image_thumb_url || "/images/placeholder.jpg";
-  const dateStr = race.date ? new Date(race.date).toLocaleDateString() : "";
+  const img = race.image_thumb_url || race.image_url || "/images/placeholder.jpg";
+  const dateStr = safeDateToLocale(race.date);
+
   return (
     <div className="race-details">
       <div className="race-details__hero">
@@ -147,8 +167,38 @@ function RaceDetails({ race, onBack }) {
   );
 }
 
+// === TOOLBAR FILTRI (coerente e minimal) ===
+function FiltersBar({ value, onChange, showPast, setShowPast, onApply }) {
+  const [local, setLocal] = useState(value);
+  useEffect(()=>{ setLocal(value) }, [value]);
+
+  return (
+    <div className="filters-toolbar">
+      <div className="filters-toolbar__grid">
+        <input className="input" placeholder="Paese" value={local.country} onChange={e=>setLocal(s=>({...s, country:e.target.value}))}/>
+        <input className="input" placeholder="Città" value={local.city} onChange={e=>setLocal(s=>({...s, city:e.target.value}))}/>
+        <input className="input" placeholder="Distanza (es. 42)" value={local.distance} onChange={e=>setLocal(s=>({...s, distance:e.target.value}))}/>
+        <input className="input" placeholder="Cerca (nome/luogo)" value={local.q} onChange={e=>setLocal(s=>({...s, q:e.target.value}))}/>
+        <div className="filters-toolbar__switch">
+          <label className="switch">
+            <input type="checkbox" checked={showPast} onChange={e=>setShowPast(e.target.checked)} />
+            <span className="slider" />
+          </label>
+          <span className="switch__label">Includi gare passate</span>
+        </div>
+      </div>
+      <div className="filters-toolbar__actions">
+        <button className="btn btn-outline" onClick={()=>{ setLocal({country:"",city:"",distance:"",q:""}); onChange({country:"",city:"",distance:"",q:""}); }}>Reset</button>
+        <button className="btn btn-primary" onClick={()=> onChange(local)}>Applica</button>
+      </div>
+    </div>
+  );
+}
+
 // === PAGINA RICERCA ===
 function SearchPage({ onDetails, onSelect, initialFilters }) {
+  // di default mostriamo SOLO futuro → fromDate = oggi
+  const [showPast, setShowPast] = useState(false);
   const [filters, setFilters] = useState(initialFilters || { country: "", city: "", distance: "", q: "" });
   const [page, setPage] = useState(1);
   const [limit] = useState(24);
@@ -156,13 +206,14 @@ function SearchPage({ onDetails, onSelect, initialFilters }) {
   const [loading, setLoading] = useState(false);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil((data?.total || 0) / limit)), [data, limit]);
+  const fromDate = showPast ? undefined : todayISO();
 
   useEffect(() => {
     let ignore = false;
     async function run() {
       setLoading(true);
       try {
-        const res = await fetchRaces({ ...filters, page, limit });
+        const res = await fetchRaces({ ...filters, page, limit, fromDate });
         if (!ignore) setData(res);
       } catch (e) {
         console.error(e);
@@ -172,25 +223,19 @@ function SearchPage({ onDetails, onSelect, initialFilters }) {
     }
     run();
     return () => { ignore = true; };
-  }, [filters, page, limit]);
+  }, [filters, page, limit, fromDate]);
 
   return (
     <>
-      {/* su pagine non-home mostriamo una topbar semplice */}
-      <div className="topbar">
-        <div className="container topbar__inner">
-          <div className="brand">Runshift</div>
-          <div className="topbar__right" />
-        </div>
-      </div>
-
-      <div className="container">
-        <h1 style={{ marginTop: 16 }}>Cerca gare</h1>
-        <div className="filters-grid">
-          <input className="input" placeholder="Paese" value={filters.country} onChange={e => { setPage(1); setFilters(f => ({ ...f, country: e.target.value })); }} />
-          <input className="input" placeholder="Città" value={filters.city} onChange={e => { setPage(1); setFilters(f => ({ ...f, city: e.target.value })); }} />
-          <input className="input" placeholder="Distanza (es. 42)" value={filters.distance} onChange={e => { setPage(1); setFilters(f => ({ ...f, distance: e.target.value })); }} />
-          <input className="input" placeholder="Cerca (nome/luogo)" value={filters.q} onChange={e => { setPage(1); setFilters(f => ({ ...f, q: e.target.value })); }} />
+      <div className="section">
+        <div className="container">
+          <h1 className="section-title" style={{marginTop: 6}}>Cerca gare</h1>
+          <FiltersBar
+            value={filters}
+            onChange={(v)=>{ setPage(1); setFilters(v); }}
+            showPast={showPast}
+            setShowPast={setShowPast}
+          />
         </div>
       </div>
 
@@ -220,11 +265,10 @@ function SearchPage({ onDetails, onSelect, initialFilters }) {
 
 // === BUILD PAGE (seleziona target + 3 slot suggerimenti) ===
 function BuildPage({ targetRace, onPickTarget, onBackToSearch }) {
-  const [slots, setSlots] = useState([null, null, null]); // 3 slot di build-up
-  const [suggestions, setSuggestions] = useState([[], [], []]); // suggerimenti per slot
+  const [slots, setSlots] = useState([null, null, null]);
+  const [suggestions, setSuggestions] = useState([[], [], []]);
   const [loading, setLoading] = useState(false);
 
-  // genera suggerimenti base quando cambia target
   useEffect(() => {
     let ignore = false;
     async function run() {
@@ -232,29 +276,28 @@ function BuildPage({ targetRace, onPickTarget, onBackToSearch }) {
       setLoading(true);
       try {
         const baseDate = targetRace.date ? new Date(targetRace.date) : null;
-        const distForSuggest = (targetRace.distance_km || "").split("/")[0]?.trim() || ""; // prendi la prima distanza
+        const distForSuggest = (targetRace.distance_km || "").split("/")[0]?.trim() || "";
         const out = [[], [], []];
 
-        // euristica semplice sulle date (se la data manca, facciamo solo per distanza)
         const ranges = [
-          { label: "8-12 settimane prima", weeks: 10 },
-          { label: "4-6 settimane prima", weeks: 5 },
-          { label: "2-3 settimane prima", weeks: 3 },
+          { weeks: 10 }, // ~8-12
+          { weeks: 5 },  // ~4-6
+          { weeks: 3 },  // ~2-3
         ];
 
         for (let i = 0; i < ranges.length; i++) {
           const params = new URLSearchParams();
           if (distForSuggest) params.set("distance", distForSuggest);
           params.set("limit", "12");
-          // Non imponiamo data se non abbiamo la data target
           if (baseDate) {
             const dt = new Date(baseDate);
             dt.setDate(dt.getDate() - (ranges[i].weeks * 7));
-            // finestra +/- 14 giorni
             const fromDate = new Date(dt); fromDate.setDate(fromDate.getDate() - 14);
             const toDate = new Date(dt); toDate.setDate(toDate.getDate() + 14);
             params.set("fromDate", fromDate.toISOString().slice(0, 10));
             params.set("toDate", toDate.toISOString().slice(0, 10));
+          } else {
+            params.set("fromDate", todayISO());
           }
           const r = await fetch(`${API_URL}/api/races?${params.toString()}`);
           const json = await r.json();
@@ -273,78 +316,101 @@ function BuildPage({ targetRace, onPickTarget, onBackToSearch }) {
 
   return (
     <>
-      <div className="topbar">
-        <div className="container topbar__inner">
-          <div className="brand">Runshift</div>
-          <div className="topbar__right" />
+      <div className="section">
+        <div className="container">
+          <h1 className="section-title" style={{marginTop: 6}}>Build your plan</h1>
+          {!targetRace ? (
+            <>
+              <p>Seleziona una gara target nella pagina di ricerca per iniziare il tuo percorso.</p>
+              <button className="btn btn-outline" onClick={onBackToSearch}>Vai alla ricerca</button>
+            </>
+          ) : (
+            <>
+              <div className="target-panel">
+                <div>
+                  <div className="kicker">Gara target</div>
+                  <h2 className="target-title">{targetRace.race_name}</h2>
+                  <div className="target-meta">
+                    {targetRace.location_city}{targetRace.location_city && targetRace.location_country ? ", " : ""}{targetRace.location_country}
+                    {targetRace.date ? " • " + safeDateToLocale(targetRace.date) : ""}
+                  </div>
+                </div>
+                <button className="btn btn-outline" onClick={onBackToSearch}>Cambia target</button>
+              </div>
+
+              <div className="build-grid">
+                {[0, 1, 2].map((idx) => {
+                  const slotRace = slots[idx];
+                  const sug = suggestions[idx] || [];
+                  return (
+                    <div className="build-slot" key={idx}>
+                      <div className="slot-head">Slot {idx + 1}</div>
+                      {!slotRace ? (
+                        <>
+                          {loading && <p>Caricamento suggerimenti…</p>}
+                          <div className="cards-grid">
+                            {sug.slice(0, 6).map((race) => (
+                              <RaceCard
+                                key={`${idx}-${race.race_url}`}
+                                race={race}
+                                onDetails={() => window.open(race.race_url, "_blank")}
+                                onSelect={(r) => setSlots(s => { const c = [...s]; c[idx] = r; return c; })}
+                              />
+                            ))}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="selected-slot">
+                          <p className="kicker">Scelto</p>
+                          <div className="selected-slot__card">
+                            <RaceCard
+                              race={slotRace}
+                              onDetails={() => window.open(slotRace.race_url, "_blank")}
+                              onSelect={() => {}}
+                            />
+                          </div>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button className="btn btn-outline" onClick={() => setSlots(s => { const c = [...s]; c[idx] = null; return c; })}>Sostituisci</button>
+                            <button className="btn btn-primary">Conferma slot</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
       </div>
+    </>
+  );
+}
 
-      <div className="container" style={{ marginTop: 16 }}>
-        <h1>Build your plan</h1>
-        {!targetRace ? (
-          <>
-            <p>Seleziona prima una gara target nella pagina di ricerca per iniziare il tuo percorso.</p>
-            <button className="btn btn-outline" onClick={onBackToSearch}>Vai alla ricerca</button>
-          </>
-        ) : (
-          <>
-            <div className="target-panel">
-              <div>
-                <div className="kicker">Gara target</div>
-                <h2 className="target-title">{targetRace.race_name}</h2>
-                <div className="target-meta">
-                  {targetRace.location_city}{targetRace.location_city && targetRace.location_country ? ", " : ""}{targetRace.location_country}
-                  {targetRace.date ? " • " + new Date(targetRace.date).toLocaleDateString() : ""}
-                </div>
-              </div>
-              <button className="btn btn-outline" onClick={onBackToSearch}>Cambia target</button>
+// === HOME SECTION (coerente con resto) ===
+function Home({ onPrimary, onSecondary }) {
+  return (
+    <>
+      <Hero onPrimary={onPrimary} onSecondary={onSecondary} />
+      <section className="section">
+        <div className="container">
+          <h2 className="section-title">Perché Runshift?</h2>
+          <div className="features">
+            <div className="feature">
+              <div className="feature__title">Motivazione</div>
+              <div className="feature__body">Eventi iconici, luoghi epici, storie da raccontare.</div>
             </div>
-
-            <div className="build-grid">
-              {[0, 1, 2].map((idx) => {
-                const slotRace = slots[idx];
-                const sug = suggestions[idx] || [];
-                return (
-                  <div className="build-slot" key={idx}>
-                    <div className="slot-head">Slot {idx + 1}</div>
-                    {!slotRace ? (
-                      <>
-                        {loading && <p>Caricamento suggerimenti…</p>}
-                        <div className="cards-grid">
-                          {sug.slice(0, 6).map((race) => (
-                            <RaceCard
-                              key={`${idx}-${race.race_url}`}
-                              race={race}
-                              onDetails={() => window.open(race.race_url, "_blank")}
-                              onSelect={(r) => setSlots(s => { const c = [...s]; c[idx] = r; return c; })}
-                            />
-                          ))}
-                        </div>
-                      </>
-                    ) : (
-                      <div className="selected-slot">
-                        <p className="kicker">Scelto</p>
-                        <div className="selected-slot__card">
-                          <RaceCard
-                            race={slotRace}
-                            onDetails={() => window.open(slotRace.race_url, "_blank")}
-                            onSelect={() => {}}
-                          />
-                        </div>
-                        <div style={{ display: "flex", gap: 8 }}>
-                          <button className="btn btn-outline" onClick={() => setSlots(s => { const c = [...s]; c[idx] = null; return c; })}>Sostituisci</button>
-                          <button className="btn btn-primary">Conferma slot</button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+            <div className="feature">
+              <div className="feature__title">Pianificazione</div>
+              <div className="feature__body">Costruisci un calendario intelligente con build‑up mirati.</div>
             </div>
-          </>
-        )}
-      </div>
+            <div className="feature">
+              <div className="feature__title">Semplicità</div>
+              <div className="feature__body">Filtri chiari, card visive e dettagli essenziali.</div>
+            </div>
+          </div>
+        </div>
+      </section>
     </>
   );
 }
@@ -357,19 +423,16 @@ export default function App() {
   const [selectedRace, setSelectedRace] = useState(null); // per dettagli
   const [targetRace, setTargetRace] = useState(null);     // per build plan
 
-  // Navigazione centrale
   const navigate = (v) => { setView(v); window.scrollTo(0, 0); };
 
   const handleDetails = async (race) => {
     try {
-      // prendi i dettagli completi dalla nostra API (per coerenza)
       const full = await fetchRaceByUrl(race.race_url);
       setSelectedRace(full);
       setView("details");
       window.scrollTo(0, 0);
     } catch (e) {
       console.error(e);
-      // fallback: usa race già in card
       setSelectedRace(race);
       setView("details");
     }
@@ -383,32 +446,11 @@ export default function App() {
 
   return (
     <div>
-      {/* Home senza topbar: solo burger */}
+      <TopBar onNav={navigate} view={view} setMenuOpen={setMenuOpen} />
+      <Offcanvas open={menuOpen} onClose={()=>setMenuOpen(false)} onNavigate={navigate} />
+
       {view === "home" && (
-        <>
-          <div className="hero-top">
-            <Burger onClick={() => setMenuOpen(true)} />
-          </div>
-          <Offcanvas open={menuOpen} onClose={() => setMenuOpen(false)} onNavigate={navigate} />
-          <Hero onPrimary={() => navigate("search")} onSecondary={() => navigate("build")} />
-          <section className="container" style={{ margin: "32px auto 48px" }}>
-            <h2 className="section-title">Perché Runshift?</h2>
-            <div className="features">
-              <div className="feature">
-                <div className="feature__title">Motivazione</div>
-                <div className="feature__body">Trova eventi iconici e lasciati ispirare da luoghi epici.</div>
-              </div>
-              <div className="feature">
-                <div className="feature__title">Pianificazione</div>
-                <div className="feature__body">Costruisci un calendario con gare di avvicinamento smart.</div>
-              </div>
-              <div className="feature">
-                <div className="feature__title">Semplicità</div>
-                <div className="feature__body">Filtri chiari, card con immagini e dettagli essenziali.</div>
-              </div>
-            </div>
-          </section>
-        </>
+        <Home onPrimary={() => navigate("search")} onSecondary={() => navigate("build")} />
       )}
 
       {view === "search" && (
@@ -433,4 +475,3 @@ export default function App() {
     </div>
   );
 }
-
