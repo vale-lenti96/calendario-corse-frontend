@@ -11,24 +11,22 @@ const API_URL = "https://backend-db-corse-v2.onrender.com";
 ========================= */
 function classNames(...a){ return a.filter(Boolean).join(" "); }
 
-function safeDateToLocale(s) {
-  if (!s) return "";
-  // Supporta: "YYYY-MM-DD", ISO, "DD/MM/YYYY"
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-    const d = new Date(`${s}T00:00:00`);
-    return isNaN(d) ? s : d.toLocaleDateString();
-  }
-  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) {
-    const d = new Date(s);
-    return isNaN(d) ? s : d.toLocaleDateString();
-  }
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
-    const [dd, mm, yyyy] = s.split("/");
-    const d = new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
-    return isNaN(d) ? s : d.toLocaleDateString();
-  }
-  // fallback: lascio com’è (es. "21 set 2026")
-  return s;
+// === Date utils (DB usa date_ts TIMESTAMP; UI mostra gg/mm/aaaa) ===
+function safeDateToDMY(dateVal) {
+  if (!dateVal) return "";
+  const d = new Date(dateVal);
+  if (isNaN(d)) return "";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+// "dd/mm/yyyy" -> "yyyy-mm-dd" (per inviare al backend)
+function dmyToIso(str){
+  if(!/^\d{2}\/\d{2}\/\d{4}$/.test(str)) return "";
+  const [dd,mm,yyyy] = str.split("/");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 /* Estrae numeri (km) da "42 / 21.1 / 10" */
@@ -128,7 +126,7 @@ function Hero({ onPrimary, onSecondary }) {
 ========================= */
 function RaceCard({ race, onDetails, onSelect }) {
   const img = race.image_thumb_url || race.image_url || "/images/placeholder.jpg";
-  const dateStr = safeDateToLocale(race.date);
+  const dateStr = safeDateToDMY(race.date);
 
   return (
     <div className="race-card">
@@ -165,7 +163,7 @@ function RaceDetails({ race, onBack }) {
           <h1 className="race-details__title">{race.race_name}</h1>
           <p className="race-details__subtitle">
             {race.location_city}{race.location_city && race.location_country ? ", " : ""}{race.location_country}
-            {race.date ? " • " + safeDateToLocale(race.date) : ""}
+            {race.date ? " • " + safeDateToDMY(race.date) : ""}
           </p>
         </div>
       </div>
@@ -204,20 +202,39 @@ function FiltersBar({ value, onChange }) {
         <input className="input" placeholder="Tipo gara (es. marathon, trail)" value={local.type} onChange={e=>setLocal(s=>({...s, type:e.target.value}))}/>
         <input className="input" placeholder="Distanza (es. 42)" value={local.distance} onChange={e=>setLocal(s=>({...s, distance:e.target.value}))}/>
         <input className="input" placeholder="Città" value={local.city} onChange={e=>setLocal(s=>({...s, city:e.target.value}))}/>
-        <input className="input" placeholder="Data dal (YYYY-MM-DD)" value={local.fromDate||""} onChange={e=>setLocal(s=>({...s, fromDate:e.target.value}))}/>
-        <input className="input" placeholder="Data al (YYYY-MM-DD)" value={local.toDate||""} onChange={e=>setLocal(s=>({...s, toDate:e.target.value}))}/>
+
+        {/* Se usi un calendario custom, sostituisci questi <input> con il tuo componente.
+           L'importante è che local.fromDate/toDate restino in "gg/mm/aaaa". */}
+        <input className="input" placeholder="Dal (gg/mm/aaaa)" value={local.fromDate||""} onChange={e=>setLocal(s=>({...s, fromDate:e.target.value}))}/>
+        <input className="input" placeholder="Al (gg/mm/aaaa)"  value={local.toDate||""}  onChange={e=>setLocal(s=>({...s, toDate:e.target.value}))}/>
+
         <input className="input" placeholder="Cerca (nome/luogo)" value={local.q} onChange={e=>setLocal(s=>({...s, q:e.target.value}))}/>
       </div>
+
       <div className="filters-toolbar__actions">
-        <button className="btn btn-outline" onClick={()=>{
-          const reset={country:"", city:"", distance:"", q:"", type:"", fromDate:"", toDate:""};
-          setLocal(reset); onChange(reset);
-        }}>Reset</button>
-        <button className="btn btn-primary" onClick={()=> onChange(local)}>Applica</button>
+        <button
+          className="btn btn-outline"
+          onClick={()=>{
+            const reset={country:"", city:"", distance:"", q:"", type:"", fromDate:"", toDate:""};
+            setLocal(reset); onChange(reset);
+          }}
+        >Reset</button>
+
+        <button
+          className="btn btn-primary"
+          onClick={()=>{
+            // CONVERSIONE per l'API: dd/mm/yyyy -> yyyy-mm-dd
+            const payload = { ...local };
+            if (local.fromDate) payload.fromDate = dmyToIso(local.fromDate);
+            if (local.toDate)   payload.toDate   = dmyToIso(local.toDate);
+            onChange(payload);
+          }}
+        >Applica</button>
       </div>
     </div>
   );
 }
+
 
 /* =========================
    Search Page (senza mappa)
@@ -297,7 +314,7 @@ function BuildPage({ targetRace, onBackToSearch }) {
       if (!targetRace) return;
       setLoading(true);
       try{
-        const baseDate = targetRace.date ? new Date(safeDateToLocale(targetRace.date)) : null;
+        const baseDate = targetRace?.date_ts ? new Date(targetRace.date_ts) : null;
         const slotDistances = slotDistanceTargets(targetRace);
         const out=[[],[],[]];
 
@@ -343,7 +360,7 @@ function BuildPage({ targetRace, onBackToSearch }) {
                 <h2 className="target-title">{targetRace.race_name}</h2>
                 <div className="target-meta">
                   {targetRace.location_city}{targetRace.location_city && targetRace.location_country ? ", " : ""}{targetRace.location_country}
-                  {targetRace.date ? " • " + safeDateToLocale(targetRace.date) : ""}
+                  {targetRace.date_ts ? " • " + safeDateToDMY(targetRace.date_ts) : ""}
                 </div>
               </div>
               <button className="btn btn-outline" onClick={onBackToSearch}>Cambia target</button>
