@@ -1,119 +1,77 @@
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 
-/** =========================
- * Config
- * ========================= */
+/* =========================
+   Config
+========================= */
 const API_URL = "https://backend-db-corse-v2.onrender.com";
 
-/** =========================
- * Utils
- * ========================= */
-function todayISO() {
-  const d = new Date();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${mm}-${dd}`;
-}
+/* =========================
+   Utils
+========================= */
+function classNames(...a){ return a.filter(Boolean).join(" "); }
+
 function safeDateToLocale(s) {
   if (!s) return "";
-  const isShort = /^\d{4}-\d{2}-\d{2}$/.test(s);
-  const d = new Date(isShort ? `${s}T00:00:00` : s);
-  return isNaN(d.getTime()) ? "" : d.toLocaleDateString();
+  // Supporta: "YYYY-MM-DD", ISO, "DD/MM/YYYY"
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const d = new Date(`${s}T00:00:00`);
+    return isNaN(d) ? s : d.toLocaleDateString();
+  }
+  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) {
+    const d = new Date(s);
+    return isNaN(d) ? s : d.toLocaleDateString();
+  }
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+    const [dd, mm, yyyy] = s.split("/");
+    const d = new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
+    return isNaN(d) ? s : d.toLocaleDateString();
+  }
+  // fallback: lascio com’è (es. "21 set 2026")
+  return s;
 }
-function classNames(...a) { return a.filter(Boolean).join(" "); }
 
-// Estrae numeri (km) da stringhe tipo "42 / 21.1 / 10"
+/* Estrae numeri (km) da "42 / 21.1 / 10" */
 function parseDistanceSet(distance_km = "") {
   const nums = (distance_km.match(/(\d+(?:\.\d+)?)/g) || []).map(Number);
   return [...new Set(nums)].sort((a,b)=>a-b);
 }
 
-function buildStaticMapURL(items, opts = {}) {
-  // Static map OSM (senza chiavi) — mostriamo max 10 marker per performance
-  const size = opts.size || "640x360";
-  const zoom = opts.zoom || 4;
-
-  const withCoords = items
-    .filter(r => r.geo_lat && r.geo_lon)
-    .slice(0, 10);
-
-  if (withCoords.length === 0) {
-    // fallback Europa
-    return `https://staticmap.openstreetmap.de/staticmap.php?center=48.5,12&zoom=${zoom}&size=${size}`;
-  }
-
-  // centro = media
-  const avgLat = withCoords.reduce((s, r) => s + Number(r.geo_lat), 0) / withCoords.length;
-  const avgLon = withCoords.reduce((s, r) => s + Number(r.geo_lon), 0) / withCoords.length;
-
-  // markers=lat,lon,ol-marker
-  const markers = withCoords
-    .map(r => `${r.geo_lat},${r.geo_lon},ol-marker`)
-    .join("|");
-
-  return `https://staticmap.openstreetmap.de/staticmap.php?center=${avgLat.toFixed(4)},${avgLon.toFixed(4)}&zoom=${zoom}&size=${size}&markers=${encodeURIComponent(markers)}`;
-}
-
-function buildStaticMapForRace(race, opts = {}) {
-  const size = opts.size || "800x360";
-  const zoom = opts.zoom || 8;
-  if (!race?.geo_lat || !race?.geo_lon) {
-    return `https://staticmap.openstreetmap.de/staticmap.php?center=48.5,12&zoom=4&size=${size}`;
-  }
-  return `https://staticmap.openstreetmap.de/staticmap.php?center=${race.geo_lat},${race.geo_lon}&zoom=${zoom}&size=${size}&markers=${race.geo_lat},${race.geo_lon},ol-marker`;
-}
-
-/** =========================
- * API helpers
- * ========================= */
-async function fetchRaces({ country, city, distance, q, page = 1, limit = 24, fromDate, toDate, type }) {
+/* =========================
+   API helpers
+========================= */
+async function fetchRaces(paramsObj) {
   const params = new URLSearchParams();
-  if (country) params.set("country", country);
-  if (city) params.set("city", city);
-  if (q) params.set("q", q);
-  if (distance) params.set("distance", String(distance));
-  if (fromDate) params.set("fromDate", fromDate);
-  if (toDate) params.set("toDate", toDate);
-  if (type) params.set("type", type); // se il backend la ignora, filtriamo client-side
-  params.set("page", page);
-  params.set("limit", limit);
-
-  const r = await fetch(`${API_URL}/api/races?${params.toString()}`);
+  // passa SOLO i parametri valorizzati
+  Object.entries(paramsObj || {}).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && String(v).trim() !== "") {
+      params.set(k, v);
+    }
+  });
+  const url = `${API_URL}/api/races?${params.toString()}`;
+  const r = await fetch(url);
   if (!r.ok) throw new Error("Errore API");
-  const json = await r.json(); // {items,total,page,limit}
-  // fallback: filtro client-side su type, se fornito
-  if (type) {
-    const t = type.toLowerCase();
-    json.items = (json.items || []).filter(it =>
-      (it.race_type || "").toLowerCase().includes(t)
-      || (it.race_name || "").toLowerCase().includes(t)
-    );
-    json.total = json.items.length;
-  }
-  return json;
+  return r.json(); // {items,total,page,limit}
 }
-
 async function fetchRaceByUrl(raceUrl) {
   const r = await fetch(`${API_URL}/api/race?url=${encodeURIComponent(raceUrl)}`);
   if (!r.ok) throw new Error("Errore API");
   return r.json();
 }
 
-/** =========================
- * UI Primitives
- * ========================= */
+/* =========================
+   UI Primitives
+========================= */
 function Burger({ onClick, className }) {
   return (
-    <button className={classNames("burger", className)} aria-label="Menu" onClick={onClick}>
-      <span /><span /><span />
+    <button className={classNames("burger", className)} aria-label="Apri menu" onClick={onClick}>
+      <span/><span/><span/>
     </button>
   );
 }
-
 function Offcanvas({ open, onClose, onNavigate }) {
   return (
-    <div className={classNames("offcanvas", open && "open")}>
+    <div className={classNames("offcanvas", open && "open")} role="dialog" aria-modal="true" aria-label="Menu">
       <div className="offcanvas__header">
         <div className="brand">Runshift</div>
         <button className="btn btn-outline" onClick={onClose}>Chiudi</button>
@@ -127,28 +85,27 @@ function Offcanvas({ open, onClose, onNavigate }) {
     </div>
   );
 }
-
 function TopBar({ onNav, view, setMenuOpen }) {
   return (
     <div className="topbar">
       <div className="container topbar__inner">
         <div className="topbar__left">
           <Burger className="burger--inline" onClick={() => setMenuOpen(true)} />
-          <div className="brand" onClick={() => onNav("home")} style={{ cursor: "pointer" }}>Runshift</div>
+          <div className="brand" onClick={() => onNav("home")} style={{cursor:"pointer"}}>Runshift</div>
         </div>
         <nav className="topbar__nav">
-          <button className={classNames("navlink", view === "home" && "active")} onClick={() => onNav("home")}>Home</button>
-          <button className={classNames("navlink", view === "search" && "active")} onClick={() => onNav("search")}>Cerca gare</button>
-          <button className={classNames("navlink", view === "build" && "active")} onClick={() => onNav("build")}>Build plan</button>
+          <button className={classNames("navlink", view==="home" && "active")} onClick={()=>onNav("home")}>Home</button>
+          <button className={classNames("navlink", view==="search" && "active")} onClick={()=>onNav("search")}>Cerca gare</button>
+          <button className={classNames("navlink", view==="build" && "active")} onClick={()=>onNav("build")}>Build plan</button>
         </nav>
       </div>
     </div>
   );
 }
 
-/** =========================
- * HERO (blur bg)
- * ========================= */
+/* =========================
+   Hero (blurred bg)
+========================= */
 function Hero({ onPrimary, onSecondary }) {
   return (
     <section className="hero" data-blur-bg>
@@ -166,9 +123,9 @@ function Hero({ onPrimary, onSecondary }) {
   );
 }
 
-/** =========================
- * Components: Card / Details
- * ========================= */
+/* =========================
+   Components: Card & Details
+========================= */
 function RaceCard({ race, onDetails, onSelect }) {
   const img = race.image_thumb_url || race.image_url || "/images/placeholder.jpg";
   const dateStr = safeDateToLocale(race.date);
@@ -226,168 +183,108 @@ function RaceDetails({ race, onBack }) {
             )}
             <button className="btn btn-outline mt-16" onClick={onBack}>← Torna ai risultati</button>
           </div>
-          <div className="race-details__map">
-            <img
-              src={buildStaticMapForRace(race, { size: "720x360", zoom: 8 })}
-              alt="Mappa gara"
-              className="map-img"
-              loading="lazy"
-            />
-          </div>
         </div>
       </div>
     </div>
   );
 }
 
-/** =========================
- * Filters (coerenti + mappa)
- * ========================= */
-function FiltersBar({ value, onChange, showPast, setShowPast, onApply }) {
+/* =========================
+   Filters (NO MAP)
+========================= */
+function FiltersBar({ value, onChange }) {
   const [local, setLocal] = useState(value);
+
   useEffect(() => { setLocal(value); }, [value]);
 
   return (
     <div className="filters-toolbar">
       <div className="filters-toolbar__grid">
-        <input className="input" placeholder="Paese" value={local.country} onChange={e => setLocal(s => ({ ...s, country: e.target.value }))} />
-        <input className="input" placeholder="Tipo gara (es. marathon, trail)" value={local.type} onChange={e => setLocal(s => ({ ...s, type: e.target.value }))} />
-        <input className="input" placeholder="Distanza (es. 42)" value={local.distance} onChange={e => setLocal(s => ({ ...s, distance: e.target.value }))} />
-        <input className="input" placeholder="Città" value={local.city} onChange={e => setLocal(s => ({ ...s, city: e.target.value }))} />
-        <div className="filters-toolbar__dates">
-          <label>Dal</label>
-          <input type="date" className="input" value={local.fromDate || ""} onChange={e => setLocal(s => ({ ...s, fromDate: e.target.value }))} />
-        </div>
-        <div className="filters-toolbar__dates">
-          <label>Al</label>
-          <input type="date" className="input" value={local.toDate || ""} onChange={e => setLocal(s => ({ ...s, toDate: e.target.value }))} />
-        </div>
-        <input className="input" placeholder="Cerca (nome/luogo)" value={local.q} onChange={e => setLocal(s => ({ ...s, q: e.target.value }))} />
-        <div className="filters-toolbar__switch">
-          <label className="switch">
-            <input type="checkbox" checked={showPast} onChange={e => setShowPast(e.target.checked)} />
-            <span className="slider" />
-          </label>
-          <span className="switch__label">Includi gare passate</span>
-        </div>
+        <input className="input" placeholder="Paese" value={local.country} onChange={e=>setLocal(s=>({...s, country:e.target.value}))}/>
+        <input className="input" placeholder="Tipo gara (es. marathon, trail)" value={local.type} onChange={e=>setLocal(s=>({...s, type:e.target.value}))}/>
+        <input className="input" placeholder="Distanza (es. 42)" value={local.distance} onChange={e=>setLocal(s=>({...s, distance:e.target.value}))}/>
+        <input className="input" placeholder="Città" value={local.city} onChange={e=>setLocal(s=>({...s, city:e.target.value}))}/>
+        <input className="input" placeholder="Data dal (YYYY-MM-DD)" value={local.fromDate||""} onChange={e=>setLocal(s=>({...s, fromDate:e.target.value}))}/>
+        <input className="input" placeholder="Data al (YYYY-MM-DD)" value={local.toDate||""} onChange={e=>setLocal(s=>({...s, toDate:e.target.value}))}/>
+        <input className="input" placeholder="Cerca (nome/luogo)" value={local.q} onChange={e=>setLocal(s=>({...s, q:e.target.value}))}/>
       </div>
       <div className="filters-toolbar__actions">
-        <button
-          className="btn btn-outline"
-          onClick={() => {
-            const reset = { country: "", city: "", distance: "", q: "", type: "", fromDate: "", toDate: "" };
-            setLocal(reset);
-            onChange(reset);
-          }}
-        >
-          Reset
-        </button>
-        <button className="btn btn-primary" onClick={() => onChange(local)}>Applica</button>
+        <button className="btn btn-outline" onClick={()=>{
+          const reset={country:"", city:"", distance:"", q:"", type:"", fromDate:"", toDate:""};
+          setLocal(reset); onChange(reset);
+        }}>Reset</button>
+        <button className="btn btn-primary" onClick={()=> onChange(local)}>Applica</button>
       </div>
     </div>
   );
 }
 
-/** =========================
- * Search Page (con mappa)
- * ========================= */
+/* =========================
+   Search Page (senza mappa)
+========================= */
 function SearchPage({ onDetails, onSelect, initialFilters }) {
-  const [showPast, setShowPast] = useState(false);
-  const [filters, setFilters] = useState(initialFilters || { country: "", city: "", distance: "", q: "", type: "", fromDate: "", toDate: "" });
+  const [filters, setFilters] = useState(initialFilters || { country: "", city: "", distance: "", q: "", type: "", fromDate:"", toDate:"" });
   const [page, setPage] = useState(1);
   const [limit] = useState(24);
   const [data, setData] = useState({ items: [], total: 0 });
   const [loading, setLoading] = useState(false);
-  const [showMap, setShowMap] = useState(true);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil((data?.total || 0) / limit)), [data, limit]);
-  const effectiveFrom = showPast ? (filters.fromDate || "") : (filters.fromDate || todayISO());
 
   useEffect(() => {
-    let ignore = false;
-    async function run() {
+    let ignore=false;
+    async function run(){
       setLoading(true);
-      try {
-        const res = await fetchRaces({
-          ...filters,
-          fromDate: effectiveFrom || undefined,
-          page, limit
-        });
-        if (!ignore) setData(res);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        if (!ignore) setLoading(false);
-      }
+      try{
+        const res = await fetchRaces({ ...filters, page, limit });
+        if(!ignore) setData(res);
+      }catch(e){ console.error(e); }
+      finally{ if(!ignore) setLoading(false); }
     }
     run();
-    return () => { ignore = true; };
-  }, [filters, page, limit, showPast]);
-
-  const mapUrl = useMemo(() => buildStaticMapURL(data.items || [], { size: "720x420", zoom: 4 }), [data.items]);
+    return ()=>{ ignore=true };
+  }, [filters, page, limit]);
 
   return (
     <div className="section">
       <div className="container">
-        <h1 className="section-title" style={{ marginTop: 6 }}>Cerca gare</h1>
-        <FiltersBar
-          value={filters}
-          onChange={(v) => { setPage(1); setFilters(v); }}
-          showPast={showPast}
-          setShowPast={setShowPast}
-        />
-
-        <div className="search-layout">
-          <div className="search-results">
-            {loading ? <p>Caricamento…</p> : (
-              <>
-                {data.items.length === 0 && <p>Nessuna gara trovata.</p>}
-                <div className="cards-grid">
-                  {data.items.map((race) => (
-                    <RaceCard key={race.race_url} race={race} onDetails={onDetails} onSelect={onSelect} />
-                  ))}
+        <h1 className="section-title" style={{marginTop:6}}>Cerca gare</h1>
+        <FiltersBar value={filters} onChange={(v)=>{ setPage(1); setFilters(v); }} />
+        <div className="search-results">
+          {loading ? <p>Caricamento…</p> : (
+            <>
+              {data.items.length === 0 && <p>Nessuna gara trovata.</p>}
+              <div className="cards-grid">
+                {data.items.map((race) => (
+                  <RaceCard key={race.race_url} race={race} onDetails={onDetails} onSelect={onSelect} />
+                ))}
+              </div>
+              {totalPages > 1 && (
+                <div className="pagination">
+                  <button className="btn btn-outline" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>←</button>
+                  <div className="pagination__info">{page} / {totalPages}</div>
+                  <button className="btn btn-outline" disabled={page>=totalPages} onClick={()=>setPage(p=>p+1)}>→</button>
                 </div>
-                {totalPages > 1 && (
-                  <div className="pagination">
-                    <button className="btn btn-outline" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>←</button>
-                    <div className="pagination__info">{page} / {totalPages}</div>
-                    <button className="btn btn-outline" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>→</button>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-          <aside className="search-map">
-            <div className="search-map__head">
-              <div className="kicker">Mappa</div>
-              <label className="switch small">
-                <input type="checkbox" checked={showMap} onChange={e => setShowMap(e.target.checked)} />
-                <span className="slider" />
-              </label>
-            </div>
-            {showMap && (
-              <img src={mapUrl} alt="Mappa risultati" className="map-img" />
-            )}
-          </aside>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-/** =========================
- * Build Page (target + 3 slot suggeriti)
- * ========================= */
+/* =========================
+   Build Page (target + 3 slot suggeriti)
+========================= */
 function BuildPage({ targetRace, onBackToSearch }) {
   const [slots, setSlots] = useState([null, null, null]);
   const [suggestions, setSuggestions] = useState([[], [], []]);
   const [loading, setLoading] = useState(false);
 
-  // euristica simple: in base alla distanza target suggeriamo 3 build-up
   function slotDistanceTargets(target) {
     const ds = parseDistanceSet(target?.distance_km || "");
-    const max = ds[ds.length - 1] || 21; // default half
+    const max = ds[ds.length - 1] || 21;
     if (max >= 42) return [21.1, 10, 5];
     if (max >= 21) return [10, 5, 5];
     if (max >= 10) return [5, 5, 3];
@@ -395,55 +292,44 @@ function BuildPage({ targetRace, onBackToSearch }) {
   }
 
   useEffect(() => {
-    let ignore = false;
-    async function run() {
+    let ignore=false;
+    async function run(){
       if (!targetRace) return;
       setLoading(true);
-      try {
-        const baseDate = targetRace.date ? new Date(targetRace.date) : null;
+      try{
+        const baseDate = targetRace.date ? new Date(safeDateToLocale(targetRace.date)) : null;
         const slotDistances = slotDistanceTargets(targetRace);
-        const out = [[], [], []];
+        const out=[[],[],[]];
 
-        const ranges = [
-          { weeks: 10 },
-          { weeks: 5 },
-          { weeks: 3 },
-        ];
-
-        for (let i = 0; i < ranges.length; i++) {
-          const params = new URLSearchParams();
-          params.set("limit", "12");
-          params.set("distance", String(slotDistances[i]));
-          if (baseDate) {
+        const ranges=[ {weeks:10}, {weeks:5}, {weeks:3} ];
+        for (let i=0;i<ranges.length;i++){
+          const p = new URLSearchParams();
+          p.set("limit","12");
+          p.set("distance", String(slotDistances[i]));
+          if (baseDate && !isNaN(baseDate)) {
             const dt = new Date(baseDate);
             dt.setDate(dt.getDate() - (ranges[i].weeks * 7));
-            const fromDate = new Date(dt); fromDate.setDate(fromDate.getDate() - 14);
-            const toDate = new Date(dt); toDate.setDate(toDate.getDate() + 14);
-            params.set("fromDate", fromDate.toISOString().slice(0, 10));
-            params.set("toDate", toDate.toISOString().slice(0, 10));
-          } else {
-            params.set("fromDate", todayISO());
+            const fromDate=new Date(dt); fromDate.setDate(fromDate.getDate()-14);
+            const toDate=new Date(dt); toDate.setDate(toDate.getDate()+14);
+            p.set("fromDate", fromDate.toISOString().slice(0,10));
+            p.set("toDate", toDate.toISOString().slice(0,10));
           }
-          const r = await fetch(`${API_URL}/api/races?${params.toString()}`);
-          const json = await r.json();
-          out[i] = json.items || [];
+          const r = await fetch(`${API_URL}/api/races?${p.toString()}`);
+          const j = await r.json();
+          out[i]=j.items||[];
         }
-
-        if (!ignore) setSuggestions(out);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        if (!ignore) setLoading(false);
-      }
+        if(!ignore) setSuggestions(out);
+      }catch(e){ console.error(e); }
+      finally{ if(!ignore) setLoading(false); }
     }
     run();
-    return () => { ignore = true; };
+    return ()=>{ ignore=true };
   }, [targetRace]);
 
   return (
     <div className="section">
       <div className="container">
-        <h1 className="section-title" style={{ marginTop: 6 }}>Build your plan</h1>
+        <h1 className="section-title" style={{marginTop:6}}>Build your plan</h1>
         {!targetRace ? (
           <>
             <p>Seleziona una gara target nella pagina di ricerca per iniziare il tuo percorso.</p>
@@ -464,9 +350,9 @@ function BuildPage({ targetRace, onBackToSearch }) {
             </div>
 
             <div className="build-grid">
-              {[0,1,2].map((idx) => {
-                const slotRace = slots[idx];
-                const sug = suggestions[idx] || [];
+              {[0,1,2].map((idx)=> {
+                const slotRace=slots[idx];
+                const sug=suggestions[idx]||[];
                 return (
                   <div className="build-slot" key={idx}>
                     <div className="slot-head">Slot {idx+1}</div>
@@ -474,12 +360,12 @@ function BuildPage({ targetRace, onBackToSearch }) {
                       <>
                         {loading && <p>Caricamento suggerimenti…</p>}
                         <div className="cards-grid">
-                          {sug.slice(0, 6).map((race) => (
+                          {sug.slice(0,6).map((race)=>(
                             <RaceCard
                               key={`${idx}-${race.race_url}`}
                               race={race}
-                              onDetails={() => window.open(race.race_url, "_blank")}
-                              onSelect={(r) => setSlots(s => { const c=[...s]; c[idx]=r; return c; })}
+                              onDetails={()=>window.open(race.race_url,"_blank")}
+                              onSelect={(r)=>setSlots(s=>{const c=[...s]; c[idx]=r; return c;})}
                             />
                           ))}
                         </div>
@@ -488,10 +374,10 @@ function BuildPage({ targetRace, onBackToSearch }) {
                       <div className="selected-slot">
                         <p className="kicker">Scelto</p>
                         <div className="selected-slot__card">
-                          <RaceCard race={slotRace} onDetails={() => window.open(slotRace.race_url, "_blank")} onSelect={() => {}} />
+                          <RaceCard race={slotRace} onDetails={()=>window.open(slotRace.race_url,"_blank")} />
                         </div>
-                        <div style={{ display: "flex", gap: 8 }}>
-                          <button className="btn btn-outline" onClick={() => setSlots(s => { const c=[...s]; c[idx]=null; return c; })}>Sostituisci</button>
+                        <div style={{display:"flex",gap:8}}>
+                          <button className="btn btn-outline" onClick={()=>setSlots(s=>{const c=[...s]; c[idx]=null; return c;})}>Sostituisci</button>
                           <button className="btn btn-primary">Conferma slot</button>
                         </div>
                       </div>
@@ -507,21 +393,22 @@ function BuildPage({ targetRace, onBackToSearch }) {
   );
 }
 
-/** =========================
- * Home (hero blur + anteprima gare)
- * ========================= */
+/* =========================
+   Home (hero blur + anteprima)
+========================= */
 function Home({ onPrimary, onSecondary, onDetails }) {
   const [preview, setPreview] = useState([]);
 
   useEffect(() => {
-    let ignore = false;
-    (async () => {
+    let ignore=false;
+    (async()=> {
       try {
-        const res = await fetchRaces({ page: 1, limit: 6, fromDate: todayISO() });
-        if (!ignore) setPreview(res.items || []);
-      } catch (e) { console.error(e); }
+        // niente filtri data di default → lasciamo al backend l’ordinamento
+        const res = await fetchRaces({ page:1, limit:6 });
+        if(!ignore) setPreview(res.items||[]);
+      } catch(e){ console.error(e); }
     })();
-    return () => { ignore = true; };
+    return ()=>{ ignore=true };
   }, []);
 
   return (
@@ -535,7 +422,7 @@ function Home({ onPrimary, onSecondary, onDetails }) {
               <RaceCard key={r.race_url} race={r} onDetails={onDetails} />
             ))}
           </div>
-          <div style={{ display: "flex", justifyContent: "center", marginTop: 18 }}>
+          <div style={{ display:"flex", justifyContent:"center", marginTop:18 }}>
             <button className="btn btn-primary" onClick={onPrimary}>Vedi tutte</button>
           </div>
         </div>
@@ -544,55 +431,59 @@ function Home({ onPrimary, onSecondary, onDetails }) {
   );
 }
 
-/** =========================
- * App root
- * ========================= */
-export default function App() {
+/* =========================
+   App root
+========================= */
+export default function App(){
   const [view, setView] = useState("home"); // 'home' | 'search' | 'details' | 'build'
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedRace, setSelectedRace] = useState(null);
   const [targetRace, setTargetRace] = useState(null);
 
-  const navigate = (v) => { setView(v); window.scrollTo(0, 0); };
+  const navigate = (v)=>{ setView(v); window.scrollTo(0,0); };
 
-  const handleDetails = async (race) => {
+  const handleDetails = async (race)=>{
     try {
       const full = await fetchRaceByUrl(race.race_url);
       setSelectedRace(full);
       setView("details");
-    } catch (e) {
+    } catch(e) {
       console.error(e);
       setSelectedRace(race);
       setView("details");
     }
-    window.scrollTo(0, 0);
+    window.scrollTo(0,0);
   };
 
-  const handleSelect = (race) => {
+  const handleSelect = (race)=>{
     setTargetRace(race);
     setView("build");
-    window.scrollTo(0, 0);
+    window.scrollTo(0,0);
   };
 
   return (
     <div>
       <TopBar onNav={navigate} view={view} setMenuOpen={setMenuOpen} />
-      <Offcanvas open={menuOpen} onClose={() => setMenuOpen(false)} onNavigate={navigate} />
+      <Offcanvas open={menuOpen} onClose={()=>setMenuOpen(false)} onNavigate={navigate} />
 
-      {view === "home" && (
-        <Home onPrimary={() => navigate("search")} onSecondary={() => navigate("build")} onDetails={handleDetails} />
+      {view==="home" && (
+        <Home onPrimary={()=>navigate("search")} onSecondary={()=>navigate("build")} onDetails={handleDetails} />
       )}
 
-      {view === "search" && (
-        <SearchPage onDetails={handleDetails} onSelect={handleSelect} initialFilters={{ country: "", city: "", distance: "", q: "", type: "" }} />
+      {view==="search" && (
+        <SearchPage
+          onDetails={handleDetails}
+          onSelect={handleSelect}
+          initialFilters={{ country:"", city:"", distance:"", q:"", type:"", fromDate:"", toDate:"" }}
+        />
       )}
 
-      {view === "details" && (
-        <RaceDetails race={selectedRace} onBack={() => navigate("search")} />
+      {view==="details" && (
+        <RaceDetails race={selectedRace} onBack={()=>navigate("search")} />
       )}
 
-      {view === "build" && (
-        <BuildPage targetRace={targetRace} onBackToSearch={() => navigate("search")} />
+      {view==="build" && (
+        <BuildPage targetRace={targetRace} onBackToSearch={()=>navigate("search")} />
       )}
     </div>
   );
