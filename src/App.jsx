@@ -427,7 +427,7 @@ function SearchPage({ onDetails, onSelect, initialFilters }) {
     <div className="section">
       <div className="container">
         <h1 className="section-title" style={{marginTop:6}}>Cerca gare</h1>
-        <FiltersBar value={filters} onChange={(v)=>{ setPage(1); setFilters(v); }} />
+         <FiltersBar value={filters} onChange={(v)=>{ setPage(1); setFilters(v); }} />
         <div className="search-results">
           {loading ? <p>Caricamento…</p> : (
             <>
