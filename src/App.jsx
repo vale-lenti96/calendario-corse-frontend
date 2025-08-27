@@ -962,7 +962,8 @@ export default function App(){
     setView("build");
     window.scrollTo(0,0);
   };
-
+   const plansApi = usePlansStorage(); // <-- chiamalo una volta qui in App
+   const { getPlan } = plansApi;
   return (
     <div>
       <TopBar onNav={navigate} view={view} setMenuOpen={setMenuOpen} />
@@ -995,25 +996,20 @@ export default function App(){
 
      {view==="build" && (
        <BuildPage targetRace={targetRace} onBackToSearch={()=>navigate("search")} onSaved={(id)=>{ setEditingPlanId(id); navigate("plans"); }} />
-)}
-const plansApi = usePlansStorage(); // <-- chiamalo una volta qui in App
-const { getPlan } = plansApi;
+    )}
+
 
 {view==="plans" && (
   <MyPlans onOpen={(id)=>{
     const plan = getPlan(id);
     if (plan?.target) {
       setTargetRace(plan.target);
-      // potresti anche ripristinare gli slot nel BuildPage:
-      // passiamo gli slot via stato globale o via sessionStorage
-      // Per semplicità: salviamo gli slot in sessionStorage e BuildPage li leggerà.
       sessionStorage.setItem("runshift_current_slots", JSON.stringify(plan.slots || [null,null,null]));
       setView("build");
       window.scrollTo(0,0);
     }
   }} />
 )}
-
     </div>
   );
 }
