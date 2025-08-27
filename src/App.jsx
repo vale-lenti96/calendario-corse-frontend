@@ -53,11 +53,7 @@ function fromDMY(str){ // "dd/mm/yyyy" -> Date
 
 
 // "dd/mm/yyyy" -> "yyyy-mm-dd" (per inviare al backend)
-function dmyToIso(str){
-  if(!/^\d{2}\/\d{2}\/\d{4}$/.test(str)) return "";
-  const [dd,mm,yyyy] = str.split("/");
-  return `${yyyy}-${mm}-${dd}`;
-}
+
 
 /* Estrae numeri (km) da "42 / 21.1 / 10" */
 function parseDistanceSet(distance_km = "") {
