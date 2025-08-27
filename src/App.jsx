@@ -53,6 +53,65 @@ function todayISO(){
   const dd = String(d.getDate()).padStart(2,"0");
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
+/* ===== Plans storage (localStorage) ===== */
+function usePlansStorage() {
+  const KEY = "runshift_plans_v1";
+  const [plans, setPlans] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; }
+  });
+  useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify(plans)); } catch {} }, [plans]);
+
+  const savePlan = (plan) => {
+    const id = plan.id || (crypto.randomUUID?.() || String(Date.now()));
+    const withId = { ...plan, id, updatedAt: new Date().toISOString() };
+    setPlans(prev => {
+      const i = prev.findIndex(p => p.id === id);
+      if (i >= 0) { const c=[...prev]; c[i]=withId; return c; }
+      return [{ ...withId, createdAt: new Date().toISOString() }, ...prev];
+    });
+    return id;
+  };
+  const deletePlan = (id) => setPlans(prev => prev.filter(p => p.id !== id));
+  const getPlan = (id) => plans.find(p => p.id === id) || null;
+
+  return { plans, savePlan, deletePlan, getPlan };
+}
+
+/* ===== Slot recommendation: distanza & label in base alla target ===== */
+function recommendSlots(targetRace){
+  // prendi distanza massima presente
+  const nums = parseDistanceSet(targetRace?.distance_km || "");
+  const max = nums[nums.length - 1] || 10;
+
+  // mapping semplice
+  if (max >= 42) { // Maratona
+    return [
+      { dist: 10,   label: "10K preparatoria", weeksBefore: 10 },
+      { dist: 30,   label: "30K lungo gara",   weeksBefore: 5  },
+      { dist: 21.1, label: "Mezza di rifinitura", weeksBefore: 3 },
+    ];
+  }
+  if (max >= 21) { // Mezza
+    return [
+      { dist: 5,   label: "5K velocità",      weeksBefore: 8 },
+      { dist: 10,  label: "10K controllo",    weeksBefore: 4 },
+      { dist: 10,  label: "10K rifinitura",   weeksBefore: 2 },
+    ];
+  }
+  if (max >= 10) { // 10K
+    return [
+      { dist: 5,   label: "5K ritmo",         weeksBefore: 4 },
+      { dist: 5,   label: "5K controllo",     weeksBefore: 2 },
+      { dist: 3,   label: "3K rifinitura",    weeksBefore: 1 },
+    ];
+  }
+  // 5K o meno
+  return [
+    { dist: 3, label: "3K ritmo",      weeksBefore: 3 },
+    { dist: 3, label: "3K controllo",  weeksBefore: 2 },
+    { dist: 2, label: "2K rifinitura", weeksBefore: 1 },
+  ];
+}
 
 
 
@@ -229,6 +288,7 @@ function Offcanvas({ open, onClose, onNavigate }) {
         <button className="link-like" onClick={() => { onNavigate("home"); onClose(); }}>Home</button>
         <button className="link-like" onClick={() => { onNavigate("search"); onClose(); }}>Cerca gare</button>
         <button className="link-like" onClick={() => { onNavigate("build"); onClose(); }}>Build plan</button>
+        <button className="link-like" onClick={() => { onNavigate("plans"); onClose(); }}>My Plans</button>
       </nav>
       <div className="offcanvas__footer">© Runshift</div>
     </div>
@@ -246,6 +306,7 @@ function TopBar({ onNav, view, setMenuOpen }) {
           <button className={classNames("navlink", view==="home" && "active")} onClick={()=>onNav("home")}>Home</button>
           <button className={classNames("navlink", view==="search" && "active")} onClick={()=>onNav("search")}>Cerca gare</button>
           <button className={classNames("navlink", view==="build" && "active")} onClick={()=>onNav("build")}>Build plan</button>
+          <button className={classNames("navlink", view==="plans" && "active")} onClick={()=>onNav("plans")}>My Plans</button>
         </nav>
       </div>
     </div>
@@ -592,59 +653,136 @@ function SearchPage({ onDetails, onSelect, initialFilters }) {
 /* =========================
    Build Page (target + 3 slot suggeriti)
 ========================= */
-function BuildPage({ targetRace, onBackToSearch }) {
-  const [slots, setSlots] = useState([null, null, null]);
+function BuildPage({ targetRace, onBackToSearch, onSaved }) {
+  const [slots, setSlots] = useState([null, null, null]); // gare scelte
+   useEffect(()=>{
+  try{
+    const raw = sessionStorage.getItem("runshift_current_slots");
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr) && arr.length===3) setSlots(arr);
+      sessionStorage.removeItem("runshift_current_slots");
+    }
+  }catch{}
+},[]);
+
   const [suggestions, setSuggestions] = useState([[], [], []]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  function slotDistanceTargets(target) {
-    const ds = parseDistanceSet(target?.distance_km || "");
-    const max = ds[ds.length - 1] || 21;
-    if (max >= 42) return [21.1, 10, 5];
-    if (max >= 21) return [10, 5, 5];
-    if (max >= 10) return [5, 5, 3];
-    return [5, 3, 3];
-  }
+  // Filtri utente per i suggerimenti (tranne tipo/distanza che derivano dallo slot)
+  const [userFilters, setUserFilters] = useState({ country:"", city:"", fromDate:"", toDate:"" });
+  const [countries, setCountries] = useState([]);
 
+  // Carica paesi (futuro) per dropdown
   useEffect(() => {
     let ignore=false;
-    async function run(){
-      if (!targetRace) return;
-      setLoading(true);
+    (async ()=>{
       try{
+        const r = await fetch(`${API_URL}/api/countries`);
+        const list = r.ok ? await r.json() : [];
+        if(!ignore) setCountries(Array.isArray(list)?list:[]);
+      }catch(e){ if(!ignore) setCountries([]); }
+    })();
+    return ()=>{ ignore=true };
+  }, []);
+
+  const slotPlan = useMemo(()=> recommendSlots(targetRace), [targetRace]);
+
+  // fetch suggerimenti per tutti gli slot
+  useEffect(() => {
+    if (!targetRace) return;
+    let ignore=false;
+    (async()=>{
+      try{
+        setLoading(true); setError("");
         const baseDate = targetRace?.date_ts ? new Date(targetRace.date_ts) : null;
-        const slotDistances = slotDistanceTargets(targetRace);
         const out=[[],[],[]];
 
-        const ranges=[ {weeks:10}, {weeks:5}, {weeks:3} ];
-        for (let i=0;i<ranges.length;i++){
+        for (let i=0;i<slotPlan.length;i++){
+          const s = slotPlan[i];
           const p = new URLSearchParams();
-          p.set("limit","12");
-          p.set("distance", String(slotDistances[i]));
-          if (baseDate && !isNaN(baseDate)) {
+          p.set("limit","30");
+          p.set("distance", String(s.dist)); // distanza consigliata
+
+          // Filtri utente (converti date UI -> ISO)
+          if (userFilters.country) p.set("country", userFilters.country);
+          if (userFilters.city)    p.set("city", userFilters.city);
+          if (userFilters.fromDate) p.set("fromDate", dmyToIso(userFilters.fromDate));
+          if (userFilters.toDate)   p.set("toDate",   dmyToIso(userFilters.toDate));
+
+          // Se c'è baseDate e non hai impostato finestra dal filtro, suggerisci una finestra attorno alla settimana target
+          if (baseDate && !userFilters.fromDate && !userFilters.toDate) {
             const dt = new Date(baseDate);
-            dt.setDate(dt.getDate() - (ranges[i].weeks * 7));
-            const fromDate=new Date(dt); fromDate.setDate(fromDate.getDate()-14);
-            const toDate=new Date(dt); toDate.setDate(toDate.getDate()+14);
-            p.set("fromDate", fromDate.toISOString().slice(0,10));
-            p.set("toDate", toDate.toISOString().slice(0,10));
+            dt.setDate(dt.getDate() - (s.weeksBefore*7));
+            const from = new Date(dt); from.setDate(from.getDate()-10);
+            const to   = new Date(dt); to.setDate(to.getDate()+10);
+            p.set("fromDate", from.toISOString().slice(0,10));
+            p.set("toDate",   to.toISOString().slice(0,10));
+          } else {
+            // di default: solo futuro
+            if (!p.has("fromDate")) p.set("fromDate", todayISO());
           }
-          const r = await fetch(`${API_URL}/api/races?${p.toString()}`);
-          const j = await r.json();
-          out[i]=j.items||[];
+
+          const url = `${API_URL}/api/races?${p.toString()}`;
+          const r = await fetch(url);
+          const j = r.ok ? await r.json() : { items:[] };
+          out[i] = j.items || [];
         }
         if(!ignore) setSuggestions(out);
-      }catch(e){ console.error(e); }
-      finally{ if(!ignore) setLoading(false); }
-    }
-    run();
+      }catch(e){
+        if(!ignore) setError(String(e.message||e));
+      }finally{
+        if(!ignore) setLoading(false);
+      }
+    })();
     return ()=>{ ignore=true };
-  }, [targetRace]);
+  }, [targetRace, userFilters, slotPlan]);
+
+  // UI per filtri suggerimenti (riusa il tuo CalendarDropdown e stile .input)
+  const SuggestionsFilters = (
+    <div className="filters-toolbar" style={{marginTop:8}}>
+      <div className="filters-toolbar__grid">
+        <select className="input" value={userFilters.country} onChange={e=>setUserFilters(s=>({...s,country:e.target.value}))}>
+          <option value="">Tutti i paesi</option>
+          {countries.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <input className="input" placeholder="Città" value={userFilters.city} onChange={e=>setUserFilters(s=>({...s,city:e.target.value}))}/>
+        <div className="filters-toolbar__dates">
+          <label>Dal</label>
+          <CalendarDropdown value={userFilters.fromDate||""} onChange={(v)=>setUserFilters(s=>({...s,fromDate:v}))}/>
+        </div>
+        <div className="filters-toolbar__dates">
+          <label>Al</label>
+          <CalendarDropdown value={userFilters.toDate||""} onChange={(v)=>setUserFilters(s=>({...s,toDate:v}))}/>
+        </div>
+      </div>
+      <div className="filters-toolbar__actions">
+        <button className="btn btn-outline" onClick={()=>setUserFilters({country:"",city:"",fromDate:"",toDate:""})}>Reset</button>
+      </div>
+    </div>
+  );
+
+  // Salvataggio piano
+  const { savePlan } = usePlansStorage(); // hook definito sopra
+  const canSave = targetRace && slots.some(Boolean);
+  const handleSave = () => {
+    if (!canSave) return;
+    const plan = {
+      id: undefined,
+      name: `${targetRace.race_name} • Build plan`,
+      target: targetRace,
+      slots,
+    };
+    const id = savePlan(plan);
+    onSaved?.(id);
+  };
 
   return (
     <div className="section">
       <div className="container">
         <h1 className="section-title" style={{marginTop:6}}>Build your plan</h1>
+
         {!targetRace ? (
           <>
             <p>Seleziona una gara target nella pagina di ricerca per iniziare il tuo percorso.</p>
@@ -661,39 +799,54 @@ function BuildPage({ targetRace, onBackToSearch }) {
                   {targetRace.date_ts ? " • " + safeDateToDMY(targetRace.date_ts) : ""}
                 </div>
               </div>
-              <button className="btn btn-outline" onClick={onBackToSearch}>Cambia target</button>
+              <div style={{display:"flex",gap:8}}>
+                <button className="btn btn-outline" onClick={onBackToSearch}>Cambia target</button>
+                <button className="btn btn-primary" disabled={!canSave} onClick={handleSave}>Conferma e salva piano</button>
+              </div>
             </div>
+
+            <div className="slot-plan-hint">
+              {slotPlan.map((s,idx)=>(
+                <div key={idx} className="slot-pill">{`Slot ${idx+1}: ${s.label}`}</div>
+              ))}
+            </div>
+
+            {SuggestionsFilters}
+
+            {error && <div className="alert error">⚠️ {error}</div>}
+            {loading && <p>Caricamento suggerimenti…</p>}
 
             <div className="build-grid">
               {[0,1,2].map((idx)=> {
-                const slotRace=slots[idx];
-                const sug=suggestions[idx]||[];
+                const chosen = slots[idx];
+                const sug = suggestions[idx]||[];
+                const plan = slotPlan[idx];
+
                 return (
                   <div className="build-slot" key={idx}>
-                    <div className="slot-head">Slot {idx+1}</div>
-                    {!slotRace ? (
-                      <>
-                        {loading && <p>Caricamento suggerimenti…</p>}
-                        <div className="cards-grid">
-                          {sug.slice(0,6).map((race)=>(
-                            <RaceCard
-                              key={`${idx}-${race.race_url}`}
-                              race={race}
-                              onDetails={()=>window.open(race.race_url,"_blank")}
-                              onSelect={(r)=>setSlots(s=>{const c=[...s]; c[idx]=r; return c;})}
-                            />
-                          ))}
-                        </div>
-                      </>
+                    <div className="slot-head">Slot {idx+1} • <span className="kicker">{plan.label} ({plan.dist}K)</span></div>
+
+                    {!chosen ? (
+                      <div className="cards-grid">
+                        {sug.slice(0,9).map((race)=>(
+                          <RaceCard
+                            key={`${idx}-${race.race_url}`}
+                            race={race}
+                            onDetails={()=>window.open(race.race_url,"_blank")}
+                            onSelect={(r)=>setSlots(s=>{const c=[...s]; c[idx]=r; return c;})}
+                          />
+                        ))}
+                        {sug.length===0 && !loading && <p>Nessuna proposta con i filtri attuali.</p>}
+                      </div>
                     ) : (
                       <div className="selected-slot">
                         <p className="kicker">Scelto</p>
                         <div className="selected-slot__card">
-                          <RaceCard race={slotRace} onDetails={()=>window.open(slotRace.race_url,"_blank")} />
+                          <RaceCard race={chosen} onDetails={()=>window.open(chosen.race_url,"_blank")} />
                         </div>
                         <div style={{display:"flex",gap:8}}>
                           <button className="btn btn-outline" onClick={()=>setSlots(s=>{const c=[...s]; c[idx]=null; return c;})}>Sostituisci</button>
-                          <button className="btn btn-primary">Conferma slot</button>
+                          <button className="btn btn-primary" onClick={()=>window.open(chosen.race_url,"_blank")}>Apri pagina gara</button>
                         </div>
                       </div>
                     )}
@@ -707,6 +860,7 @@ function BuildPage({ targetRace, onBackToSearch }) {
     </div>
   );
 }
+
 
 /* =========================
    Home (hero blur + anteprima)
@@ -746,6 +900,39 @@ function Home({ onPrimary, onSecondary, onDetails }) {
   );
 }
 
+function MyPlans({ onOpen }) {
+  const { plans, deletePlan } = usePlansStorage();
+
+  return (
+    <div className="section">
+      <div className="container">
+        <h1 className="section-title" style={{marginTop:6}}>My Plans</h1>
+        {plans.length === 0 ? (
+          <p>Non hai ancora salvato alcun piano.</p>
+        ) : (
+          <div className="plans-list">
+            {plans.map(p => (
+              <div key={p.id} className="plan-card">
+                <div className="plan-card__hdr">
+                  <h3>{p.name || (p.target?.race_name || "Piano senza nome")}</h3>
+                  <div className="plan-card__meta">
+                    {p.target?.location_country || "—"} • {p.target?.date_ts ? safeDateToDMY(p.target.date_ts) : "—"}
+                  </div>
+                </div>
+                <div className="plan-card__actions">
+                  <button className="btn btn-primary" onClick={()=>onOpen(p.id)}>Apri / Modifica</button>
+                  <button className="btn btn-outline" onClick={()=>deletePlan(p.id)}>Elimina</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
 /* =========================
    App root
 ========================= */
@@ -754,7 +941,7 @@ export default function App(){
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedRace, setSelectedRace] = useState(null);
   const [targetRace, setTargetRace] = useState(null);
-
+  const [editingPlanId, setEditingPlanId] = useState(null);
   const navigate = (v)=>{ setView(v); window.scrollTo(0,0); };
 
   const handleDetails = async (race)=>{
@@ -806,9 +993,27 @@ export default function App(){
         <RaceDetails race={selectedRace} onBack={()=>navigate("search")} />
       )}
 
-      {view==="build" && (
-        <BuildPage targetRace={targetRace} onBackToSearch={()=>navigate("search")} />
-      )}
+     {view==="build" && (
+       <BuildPage targetRace={targetRace} onBackToSearch={()=>navigate("search")} onSaved={(id)=>{ setEditingPlanId(id); navigate("plans"); }} />
+)}
+const plansApi = usePlansStorage(); // <-- chiamalo una volta qui in App
+const { getPlan } = plansApi;
+
+{view==="plans" && (
+  <MyPlans onOpen={(id)=>{
+    const plan = getPlan(id);
+    if (plan?.target) {
+      setTargetRace(plan.target);
+      // potresti anche ripristinare gli slot nel BuildPage:
+      // passiamo gli slot via stato globale o via sessionStorage
+      // Per semplicità: salviamo gli slot in sessionStorage e BuildPage li leggerà.
+      sessionStorage.setItem("runshift_current_slots", JSON.stringify(plan.slots || [null,null,null]));
+      setView("build");
+      window.scrollTo(0,0);
+    }
+  }} />
+)}
+
     </div>
   );
 }
