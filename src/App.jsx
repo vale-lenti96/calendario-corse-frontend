@@ -47,6 +47,13 @@ function fromDMY(str){ // "dd/mm/yyyy" -> Date
   const [dd,mm,yyyy]=str.split("/").map(Number);
   return new Date(yyyy, mm-1, dd);
 }
+function todayISO(){
+  const d = new Date();
+  const mm = String(d.getMonth()+1).padStart(2,"0");
+  const dd = String(d.getDate()).padStart(2,"0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
 
 
 // === Date utils (DB usa date_ts TIMESTAMP; UI mostra gg/mm/aaaa) ===
@@ -337,19 +344,68 @@ function RaceDetails({ race, onBack }) {
 /* =========================
    Filters (dropdown calendario dd/mm/aaaa)
 ========================= */
-function FiltersBar({ value, onChange }) {
-  const [local, setLocal] = useState(value);
+/* =========================
+   Filters (dropdown calendario + select)
+========================= */
+const DISTANCE_OPTIONS = [
+  { label: "Tutte le distanze", value: "" },
+  { label: "5K", value: "5" },
+  { label: "10K", value: "10" },
+  { label: "15K", value: "15" },
+  { label: "21.1K (Mezza)", value: "21.1" },
+  { label: "30K", value: "30" },
+  { label: "42.2K (Maratona)", value: "42.2" },
+  { label: "50K", value: "50" },
+  { label: "100K", value: "100" }
+];
 
+function FiltersBar({ value, onChange, countries = [] }) {
+  const [local, setLocal] = useState(value);
   useEffect(() => { setLocal(value); }, [value]);
 
   return (
     <div className="filters-toolbar">
       <div className="filters-toolbar__grid">
-        <input className="input" placeholder="Paese" value={local.country} onChange={e=>setLocal(s=>({...s, country:e.target.value}))}/>
-        <input className="input" placeholder="Tipo gara (es. marathon, trail)" value={local.type} onChange={e=>setLocal(s=>({...s, type:e.target.value}))}/>
-        <input className="input" placeholder="Distanza (es. 42)" value={local.distance} onChange={e=>setLocal(s=>({...s, distance:e.target.value}))}/>
-        <input className="input" placeholder="Città" value={local.city} onChange={e=>setLocal(s=>({...s, city:e.target.value}))}/>
+        {/* Paese: dropdown */}
+        <select
+          className="input"
+          value={local.country}
+          onChange={(e)=>setLocal(s=>({...s, country:e.target.value}))}
+        >
+          <option value="">Tutti i paesi</option>
+          {countries.map(c => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
 
+        {/* Tipo gara (stringa libera, se vuoi puoi farlo dropdown in futuro) */}
+        <input
+          className="input"
+          placeholder="Tipo gara (es. marathon, trail)"
+          value={local.type}
+          onChange={e=>setLocal(s=>({...s, type:e.target.value}))}
+        />
+
+        {/* Distanza: dropdown */}
+        <select
+          className="input"
+          value={local.distance}
+          onChange={(e)=>setLocal(s=>({...s, distance:e.target.value}))}
+        >
+          {DISTANCE_OPTIONS.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+
+        {/* Città */}
+        <input
+          className="input"
+          placeholder="Città"
+          value={local.city}
+          onChange={e=>setLocal(s=>({...s, city:e.target.value}))}
+        />
+
+        {/* Dal (calendario) */}
         <div className="filters-toolbar__dates">
           <label>Dal</label>
           <CalendarDropdown
@@ -359,6 +415,7 @@ function FiltersBar({ value, onChange }) {
           />
         </div>
 
+        {/* Al (calendario) */}
         <div className="filters-toolbar__dates">
           <label>Al</label>
           <CalendarDropdown
@@ -368,15 +425,21 @@ function FiltersBar({ value, onChange }) {
           />
         </div>
 
-        <input className="input" placeholder="Cerca (nome/luogo)" value={local.q} onChange={e=>setLocal(s=>({...s, q:e.target.value}))}/>
+        {/* Ricerca libera */}
+        <input
+          className="input"
+          placeholder="Cerca (nome/luogo)"
+          value={local.q}
+          onChange={e=>setLocal(s=>({...s, q:e.target.value}))}
+        />
       </div>
 
       <div className="filters-toolbar__actions">
         <button
           className="btn btn-outline"
           onClick={()=>{
-            const reset={country:"", city:"", distance:"", q:"", type:"", fromDate:"", toDate:""};
-            setLocal(reset); onChange(reset);
+            const reset={country:"", city:"", distance:"", q:"", type:"", fromDate:safeDateToDMY(new Date()), toDate:""};
+            setLocal(reset); onChange({ ...reset, fromDate: todayISO() }); // passiamo ISO al backend
           }}
         >Reset</button>
 
@@ -397,6 +460,7 @@ function FiltersBar({ value, onChange }) {
 
 
 
+
 /* =========================
    Search Page (senza mappa)
 ========================= */
@@ -406,8 +470,8 @@ function SearchPage({ onDetails, onSelect, initialFilters }) {
   const [limit] = useState(24);
   const [data, setData] = useState({ items: [], total: 0 });
   const [loading, setLoading] = useState(false);
-
-  const totalPages = useMemo(() => Math.max(1, Math.ceil((data?.total || 0) / limit)), [data, limit]);
+   const [countries, setCountries] = useState([]);
+   const totalPages = useMemo(() => Math.max(1, Math.ceil((data?.total || 0) / limit)), [data, limit]);
 
   useEffect(() => {
     let ignore=false;
@@ -419,6 +483,23 @@ function SearchPage({ onDetails, onSelect, initialFilters }) {
       }catch(e){ console.error(e); }
       finally{ if(!ignore) setLoading(false); }
     }
+   
+useEffect(() => {
+  let ignore = false;
+  (async () => {
+    try {
+      const r = await fetch(`${API_URL}/api/countries`);
+      if (!r.ok) throw new Error("Errore paesi");
+      const list = await r.json(); // array di stringhe
+      if (!ignore) setCountries(list);
+    } catch (e) {
+      console.error(e);
+      if (!ignore) setCountries([]); // fallback
+    }
+  })();
+  return () => { ignore = true; };
+}, []);
+
     run();
     return ()=>{ ignore=true };
   }, [filters, page, limit]);
@@ -427,7 +508,7 @@ function SearchPage({ onDetails, onSelect, initialFilters }) {
     <div className="section">
       <div className="container">
         <h1 className="section-title" style={{marginTop:6}}>Cerca gare</h1>
-         <FiltersBar value={filters} onChange={(v)=>{ setPage(1); setFilters(v); }} />
+         <FiltersBar value={filters} onChange={(v)=>{ setPage(1); setFilters(v); }} countries={countries}/>
         <div className="search-results">
           {loading ? <p>Caricamento…</p> : (
             <>
@@ -582,7 +663,7 @@ function Home({ onPrimary, onSecondary, onDetails }) {
     (async()=> {
       try {
         // niente filtri data di default → lasciamo al backend l’ordinamento
-        const res = await fetchRaces({ page:1, limit:6 });
+        const res = await fetchRaces({ page: 1, limit: 6, fromDate: todayISO() });
         if(!ignore) setPreview(res.items||[]);
       } catch(e){ console.error(e); }
     })();
@@ -649,11 +730,20 @@ export default function App(){
       )}
 
       {view==="search" && (
-        <SearchPage
-          onDetails={handleDetails}
-          onSelect={handleSelect}
-          initialFilters={{ country:"", city:"", distance:"", q:"", type:"", fromDate:"", toDate:"" }}
-        />
+      <SearchPage
+         onDetails={handleDetails}
+         onSelect={handleSelect}
+         initialFilters={{
+            country: "",
+            city: "",
+            distance: "",
+            q: "",
+            type: "",
+            fromDate: safeDateToDMY(new Date()), // oggi in gg/mm/aaaa per la UI
+            toDate: ""
+         }}
+         />
+
       )}
 
       {view==="details" && (
