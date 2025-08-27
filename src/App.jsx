@@ -29,11 +29,141 @@ function dmyToIso(str){
   return `${yyyy}-${mm}-${dd}`;
 }
 
+// Validazioni/convertitori per il calendario
+function isValidDMY(str){
+  if(!/^\d{2}\/\d{2}\/\d{4}$/.test(str)) return false;
+  const [dd,mm,yyyy]=str.split("/").map(Number);
+  const d=new Date(yyyy,mm-1,dd);
+  return d.getFullYear()===yyyy && d.getMonth()===mm-1 && d.getDate()===dd;
+}
+function toDMY(d){ // Date -> "dd/mm/yyyy"
+  const dd=String(d.getDate()).padStart(2,"0");
+  const mm=String(d.getMonth()+1).padStart(2,"0");
+  const yyyy=d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+function fromDMY(str){ // "dd/mm/yyyy" -> Date
+  if(!isValidDMY(str)) return null;
+  const [dd,mm,yyyy]=str.split("/").map(Number);
+  return new Date(yyyy, mm-1, dd);
+}
+
+
+// === Date utils (DB usa date_ts TIMESTAMP; UI mostra gg/mm/aaaa) ===
+function safeDateToDMY(dateVal) {
+  if (!dateVal) return "";
+  const d = new Date(dateVal);
+  if (isNaN(d)) return "";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+// "dd/mm/yyyy" -> "yyyy-mm-dd" (per inviare al backend)
+function dmyToIso(str){
+  if(!/^\d{2}\/\d{2}\/\d{4}$/.test(str)) return "";
+  const [dd,mm,yyyy] = str.split("/");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 /* Estrae numeri (km) da "42 / 21.1 / 10" */
 function parseDistanceSet(distance_km = "") {
   const nums = (distance_km.match(/(\d+(?:\.\d+)?)/g) || []).map(Number);
   return [...new Set(nums)].sort((a,b)=>a-b);
 }
+
+/* =========================
+   CalendarDropdown (no libs) - dd/mm/yyyy
+========================= */
+function CalendarDropdown({ value, onChange, placeholder="gg/mm/aaaa" }) {
+  const [open, setOpen] = useState(false);
+  const [input, setInput] = useState(value || "");
+  const [viewDate, setViewDate] = useState(() => {
+    const d = fromDMY(value || "");
+    return d || new Date();
+  });
+
+  useEffect(()=>{ setInput(value || ""); }, [value]);
+
+  const currentY = viewDate.getFullYear();
+  const currentM = viewDate.getMonth();
+
+  const start = new Date(currentY, currentM, 1);
+  const startDay = start.getDay(); // 0=Sun
+  const padStart = (startDay + 6) % 7; // lun->0
+  const daysInMonth = new Date(currentY, currentM+1, 0).getDate();
+
+  const cells = [];
+  for (let i=0;i<padStart;i++) cells.push(null);
+  for (let d=1; d<=daysInMonth; d++) cells.push(new Date(currentY,currentM,d));
+
+  const commitInput = () => {
+    if (input.trim()==="") { onChange(""); return; }
+    if (isValidDMY(input)) onChange(input);
+  };
+
+  return (
+    <div className="caldd">
+      <div className="caldd__inputwrap">
+        <input
+          className="input caldd__input"
+          value={input}
+          onChange={(e)=>setInput(e.target.value)}
+          onBlur={commitInput}
+          onKeyDown={(e)=>{ if(e.key==="Enter"){ e.currentTarget.blur(); } }}
+          placeholder={placeholder}
+          aria-label="Seleziona data"
+        />
+        <button className="caldd__btn" aria-label="Apri calendario" onClick={()=>setOpen(o=>!o)}>📅</button>
+      </div>
+
+      {open && (
+        <div className="caldd__popover" role="dialog" aria-label="Calendario">
+          <div className="caldd__header">
+            <button className="btn btn-outline caldd__nav" onClick={()=>setViewDate(new Date(currentY, currentM-1, 1))}>‹</button>
+            <div className="caldd__month">
+              {viewDate.toLocaleString(undefined, { month: "long", year: "numeric" })}
+            </div>
+            <button className="btn btn-outline caldd__nav" onClick={()=>setViewDate(new Date(currentY, currentM+1, 1))}>›</button>
+          </div>
+
+          <div className="caldd__grid caldd__dow">
+            {["Lun","Mar","Mer","Gio","Ven","Sab","Dom"].map(d=><div key={d} className="caldd__dowcell">{d}</div>)}
+          </div>
+
+          <div className="caldd__grid">
+            {cells.map((d,idx)=>{
+              if (!d) return <div key={idx} className="caldd__cell caldd__cell--pad"/>;
+              const label = d.getDate();
+              const sel = value && isValidDMY(value) && toDMY(d)===value;
+              return (
+                <button
+                  key={idx}
+                  className={classNames("caldd__cell", sel && "caldd__cell--sel")}
+                  onClick={()=>{
+                    const v=toDMY(d);
+                    onChange(v);
+                    setInput(v);
+                    setOpen(false);
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="caldd__footer">
+            <button className="btn btn-outline" onClick={()=>{ const v=toDMY(new Date()); onChange(v); setInput(v); setOpen(false); }}>Oggi</button>
+            <button className="btn" onClick={()=>setOpen(false)}>Chiudi</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 /* =========================
    API helpers
@@ -190,6 +320,9 @@ function RaceDetails({ race, onBack }) {
 /* =========================
    Filters (NO MAP)
 ========================= */
+/* =========================
+   Filters (dropdown calendario dd/mm/aaaa)
+========================= */
 function FiltersBar({ value, onChange }) {
   const [local, setLocal] = useState(value);
 
@@ -203,10 +336,23 @@ function FiltersBar({ value, onChange }) {
         <input className="input" placeholder="Distanza (es. 42)" value={local.distance} onChange={e=>setLocal(s=>({...s, distance:e.target.value}))}/>
         <input className="input" placeholder="Città" value={local.city} onChange={e=>setLocal(s=>({...s, city:e.target.value}))}/>
 
-        {/* Se usi un calendario custom, sostituisci questi <input> con il tuo componente.
-           L'importante è che local.fromDate/toDate restino in "gg/mm/aaaa". */}
-        <input className="input" placeholder="Dal (gg/mm/aaaa)" value={local.fromDate||""} onChange={e=>setLocal(s=>({...s, fromDate:e.target.value}))}/>
-        <input className="input" placeholder="Al (gg/mm/aaaa)"  value={local.toDate||""}  onChange={e=>setLocal(s=>({...s, toDate:e.target.value}))}/>
+        <div className="filters-toolbar__dates">
+          <label>Dal</label>
+          <CalendarDropdown
+            value={local.fromDate || ""}
+            onChange={(v)=>setLocal(s=>({...s, fromDate:v}))}
+            placeholder="gg/mm/aaaa"
+          />
+        </div>
+
+        <div className="filters-toolbar__dates">
+          <label>Al</label>
+          <CalendarDropdown
+            value={local.toDate || ""}
+            onChange={(v)=>setLocal(s=>({...s, toDate:v}))}
+            placeholder="gg/mm/aaaa"
+          />
+        </div>
 
         <input className="input" placeholder="Cerca (nome/luogo)" value={local.q} onChange={e=>setLocal(s=>({...s, q:e.target.value}))}/>
       </div>
@@ -223,7 +369,7 @@ function FiltersBar({ value, onChange }) {
         <button
           className="btn btn-primary"
           onClick={()=>{
-            // CONVERSIONE per l'API: dd/mm/yyyy -> yyyy-mm-dd
+            // CONVERSIONE per l'API: dd/mm/yyyy -> yyyy-mm-dd (DB filtra su date_ts)
             const payload = { ...local };
             if (local.fromDate) payload.fromDate = dmyToIso(local.fromDate);
             if (local.toDate)   payload.toDate   = dmyToIso(local.toDate);
@@ -234,6 +380,7 @@ function FiltersBar({ value, onChange }) {
     </div>
   );
 }
+
 
 
 /* =========================
