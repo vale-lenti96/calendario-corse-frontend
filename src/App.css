@@ -220,3 +220,14 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-appl
 /* opzionale: restringi i campi date nella griglia filtri */
 .filters-toolbar__dates label{display:block;font-size:.8rem;color:#555;margin:0 0 6px;}
 
+/* Pills per schema slot */
+.slot-plan-hint{ display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 12px; }
+.slot-pill{ background:#eef7f0; color:#0b3d2e; border:1px solid #cfe9dd; border-radius:999px; padding:6px 10px; font-size:.85rem; }
+
+/* My Plans */
+.plans-list{ display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; }
+.plan-card{ background:#fff; border:1px solid #eee; border-radius:12px; box-shadow:var(--shadow); padding:12px; display:flex; flex-direction:column; gap:10px; }
+.plan-card__hdr h3{ margin:0; font-size:1rem; font-weight:900; }
+.plan-card__meta{ color:#444; font-size:.9rem; }
+.plan-card__actions{ display:flex; gap:8px; }
+
