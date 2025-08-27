@@ -50,15 +50,7 @@ function fromDMY(str){ // "dd/mm/yyyy" -> Date
 
 
 // === Date utils (DB usa date_ts TIMESTAMP; UI mostra gg/mm/aaaa) ===
-function safeDateToDMY(dateVal) {
-  if (!dateVal) return "";
-  const d = new Date(dateVal);
-  if (isNaN(d)) return "";
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const yyyy = d.getFullYear();
-  return `${dd}/${mm}/${yyyy}`;
-}
+
 
 // "dd/mm/yyyy" -> "yyyy-mm-dd" (per inviare al backend)
 function dmyToIso(str){
