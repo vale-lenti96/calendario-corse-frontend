@@ -179,3 +179,44 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-appl
   .filters-toolbar__grid{grid-template-columns:1fr;}
   .hero{min-height:62vh;}
 }
+/* ===== Calendar dropdown ===== */
+.caldd{ position: relative; }
+.caldd__inputwrap{ display:flex; gap:6px; }
+.caldd__input{ flex:1; }
+.caldd__btn{
+  border:1px solid #e6e6e6;
+  background:#fff;
+  border-radius:10px;
+  padding:0 10px;
+  cursor:pointer;
+}
+.caldd__popover{
+  position:absolute; z-index:50;
+  top: calc(100% + 8px); left:0;
+  background:#fff; border:1px solid #eee; border-radius:12px;
+  box-shadow: 0 12px 28px rgba(0,0,0,.12);
+  padding:12px; min-width:260px;
+}
+.caldd__header{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
+.caldd__month{ font-weight:900; }
+.caldd__nav{ padding:6px 10px; }
+.caldd__grid{
+  display:grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap:6px;
+}
+.caldd__dow{ margin-bottom:6px; }
+.caldd__dowcell{
+  font-size:.78rem; color:#666; text-align:center; padding:4px 0;
+}
+.caldd__cell{
+  background:#f9f9f9; border:1px solid #eee; border-radius:10px;
+  padding:8px 0; text-align:center; cursor:pointer;
+}
+.caldd__cell--pad{ background:transparent; border:none; }
+.caldd__cell--sel{ background:#e9f4ef; border-color:#cfe9dd; font-weight:800; color:#0b3d2e; }
+.caldd__footer{ display:flex; justify-content:space-between; gap:8px; margin-top:8px; }
+
+/* opzionale: restringi i campi date nella griglia filtri */
+.filters-toolbar__dates label{display:block;font-size:.8rem;color:#555;margin:0 0 6px;}
+
