@@ -156,19 +156,45 @@ function CalendarDropdown({ value, onChange, placeholder="gg/mm/aaaa" }) {
 /* =========================
    API helpers
 ========================= */
-async function fetchRaces(paramsObj) {
+async function fetchRaces(paramsObj = {}) {
+  // Costruiamo i parametri per l'API
   const params = new URLSearchParams();
-  // passa SOLO i parametri valorizzati
-  Object.entries(paramsObj || {}).forEach(([k, v]) => {
+
+  // Copiamo solo valori valorizzati
+  for (const [k, v] of Object.entries(paramsObj)) {
     if (v !== undefined && v !== null && String(v).trim() !== "") {
       params.set(k, v);
     }
-  });
+  }
+
+  // Forziamo a includere anche il passato lato backend (se supportato)
+  if (!params.has("includePast")) params.set("includePast", "true");
+
   const url = `${API_URL}/api/races?${params.toString()}`;
+  // console.debug("[API] GET", url);
   const r = await fetch(url);
   if (!r.ok) throw new Error("Errore API");
-  return r.json(); // {items,total,page,limit}
+  const json = await r.json(); // {items,total,page,limit}
+
+  // ===== Filtro client-side su date_ts come fallback =====
+  const fromIso = paramsObj.fromDate ? new Date(paramsObj.fromDate) : null; // yyyy-mm-dd
+  const toIso   = paramsObj.toDate   ? new Date(paramsObj.toDate)   : null;
+  if (fromIso || toIso) {
+    const items = (json.items || []).filter(it => {
+      if (!it.date_ts) return false;
+      const dt = new Date(it.date_ts);
+      if (Number.isNaN(dt)) return false;
+      if (fromIso && dt < fromIso) return false;
+      if (toIso && dt > toIso) return false;
+      return true;
+    });
+    json.items = items;
+    json.total = items.length;
+  }
+
+  return json;
 }
+
 async function fetchRaceByUrl(raceUrl) {
   const r = await fetch(`${API_URL}/api/race?url=${encodeURIComponent(raceUrl)}`);
   if (!r.ok) throw new Error("Errore API");
