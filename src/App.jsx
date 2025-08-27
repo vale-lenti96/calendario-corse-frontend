@@ -359,26 +359,62 @@ const DISTANCE_OPTIONS = [
   { label: "100K", value: "100" }
 ];
 
-function FiltersBar({ value, onChange, countries = [] }) {
-  const [local, setLocal] = useState(value);
-  useEffect(() => { setLocal(value); }, [value]);
+const DISTANCE_OPTIONS = [
+  { label: "Tutte le distanze", value: "" },
+  { label: "5K", value: "5" },
+  { label: "10K", value: "10" },
+  { label: "15K", value: "15" },
+  { label: "21.1K (Mezza)", value: "21.1" },
+  { label: "30K", value: "30" },
+  { label: "42.2K (Maratona)", value: "42.2" },
+  { label: "50K", value: "50" },
+  { label: "100K", value: "100" }
+];
+
+function FiltersBar({ value, onChange, countries }) {
+  // countries viene sempre passato (array); difendi contro undefined
+  const listCountries = Array.isArray(countries) ? countries : [];
+
+  const [local, setLocal] = useState(() => ({
+    country: value?.country || "",
+    city: value?.city || "",
+    distance: value?.distance || "",
+    q: value?.q || "",
+    type: value?.type || "",
+    // UI mantiene dd/mm/yyyy; conversione avviene al click su Applica
+    fromDate: value?.fromDate || "",
+    toDate: value?.toDate || ""
+  }));
+
+  // sincronizza quando value cambia dall’esterno
+  useEffect(() => {
+    setLocal({
+      country: value?.country || "",
+      city: value?.city || "",
+      distance: value?.distance || "",
+      q: value?.q || "",
+      type: value?.type || "",
+      fromDate: value?.fromDate || "",
+      toDate: value?.toDate || ""
+    });
+  }, [value?.country, value?.city, value?.distance, value?.q, value?.type, value?.fromDate, value?.toDate]);
 
   return (
     <div className="filters-toolbar">
       <div className="filters-toolbar__grid">
-        {/* Paese: dropdown */}
+        {/* Paese */}
         <select
           className="input"
           value={local.country}
           onChange={(e)=>setLocal(s=>({...s, country:e.target.value}))}
         >
           <option value="">Tutti i paesi</option>
-          {countries.map(c => (
+          {listCountries.map(c => (
             <option key={c} value={c}>{c}</option>
           ))}
         </select>
 
-        {/* Tipo gara (stringa libera, se vuoi puoi farlo dropdown in futuro) */}
+        {/* Tipo gara (libero) */}
         <input
           className="input"
           placeholder="Tipo gara (es. marathon, trail)"
@@ -386,7 +422,7 @@ function FiltersBar({ value, onChange, countries = [] }) {
           onChange={e=>setLocal(s=>({...s, type:e.target.value}))}
         />
 
-        {/* Distanza: dropdown */}
+        {/* Distanza */}
         <select
           className="input"
           value={local.distance}
@@ -405,7 +441,7 @@ function FiltersBar({ value, onChange, countries = [] }) {
           onChange={e=>setLocal(s=>({...s, city:e.target.value}))}
         />
 
-        {/* Dal (calendario) */}
+        {/* Dal */}
         <div className="filters-toolbar__dates">
           <label>Dal</label>
           <CalendarDropdown
@@ -415,7 +451,7 @@ function FiltersBar({ value, onChange, countries = [] }) {
           />
         </div>
 
-        {/* Al (calendario) */}
+        {/* Al */}
         <div className="filters-toolbar__dates">
           <label>Al</label>
           <CalendarDropdown
@@ -438,15 +474,16 @@ function FiltersBar({ value, onChange, countries = [] }) {
         <button
           className="btn btn-outline"
           onClick={()=>{
-            const reset={country:"", city:"", distance:"", q:"", type:"", fromDate:safeDateToDMY(new Date()), toDate:""};
-            setLocal(reset); onChange({ ...reset, fromDate: todayISO() }); // passiamo ISO al backend
+            const resetUI = { country:"", city:"", distance:"", q:"", type:"", fromDate: safeDateToDMY(new Date()), toDate:"" };
+            setLocal(resetUI);
+            onChange({ ...resetUI, fromDate: todayISO() }); // al backend inviamo ISO
           }}
         >Reset</button>
 
         <button
           className="btn btn-primary"
           onClick={()=>{
-            // CONVERSIONE per l'API: dd/mm/yyyy -> yyyy-mm-dd (DB filtra su date_ts)
+            // dd/mm/yyyy -> yyyy-mm-dd per l'API
             const payload = { ...local };
             if (local.fromDate) payload.fromDate = dmyToIso(local.fromDate);
             if (local.toDate)   payload.toDate   = dmyToIso(local.toDate);
@@ -461,54 +498,74 @@ function FiltersBar({ value, onChange, countries = [] }) {
 
 
 
+
 /* =========================
    Search Page (senza mappa)
 ========================= */
 function SearchPage({ onDetails, onSelect, initialFilters }) {
-  const [filters, setFilters] = useState(initialFilters || { country: "", city: "", distance: "", q: "", type: "", fromDate:"", toDate:"" });
+  // --- HOOKS: sempre in testa, nessun return prima ---
+  const [filters, setFilters] = useState(() => (
+    initialFilters || { country:"", city:"", distance:"", q:"", type:"", fromDate:"", toDate:"" }
+  ));
   const [page, setPage] = useState(1);
   const [limit] = useState(24);
   const [data, setData] = useState({ items: [], total: 0 });
   const [loading, setLoading] = useState(false);
-   const [countries, setCountries] = useState([]);
-   const totalPages = useMemo(() => Math.max(1, Math.ceil((data?.total || 0) / limit)), [data, limit]);
+  const [error, setError] = useState("");
 
+  // Paesi (dropdown) – array sempre definito
+  const [countries, setCountries] = useState([]);
+
+  // carica paesi una volta
+  useEffect(() => {
+    let ignore = false;
+    (async () => {
+      try {
+        const r = await fetch(`${API_URL}/api/countries`);
+        if (!r.ok) throw new Error("Errore paesi");
+        const list = await r.json();
+        if (!ignore) setCountries(Array.isArray(list) ? list : []);
+      } catch (e) {
+        console.error(e);
+        if (!ignore) setCountries([]);
+      }
+    })();
+    return () => { ignore = true; };
+  }, []);
+
+  // carica gare
   useEffect(() => {
     let ignore=false;
-    async function run(){
+    (async()=>{
       setLoading(true);
+      setError("");
       try{
         const res = await fetchRaces({ ...filters, page, limit });
-        if(!ignore) setData(res);
-      }catch(e){ console.error(e); }
-      finally{ if(!ignore) setLoading(false); }
-    }
-   
-useEffect(() => {
-  let ignore = false;
-  (async () => {
-    try {
-      const r = await fetch(`${API_URL}/api/countries`);
-      if (!r.ok) throw new Error("Errore paesi");
-      const list = await r.json(); // array di stringhe
-      if (!ignore) setCountries(list);
-    } catch (e) {
-      console.error(e);
-      if (!ignore) setCountries([]); // fallback
-    }
-  })();
-  return () => { ignore = true; };
-}, []);
-
-    run();
+        if (!ignore) setData(res || { items:[], total:0 });
+      }catch(e){
+        if (!ignore) setError(String(e.message||e));
+      }finally{
+        if (!ignore) setLoading(false);
+      }
+    })();
     return ()=>{ ignore=true };
   }, [filters, page, limit]);
+
+  const totalPages = Math.max(1, Math.ceil((data?.total || 0) / limit));
 
   return (
     <div className="section">
       <div className="container">
         <h1 className="section-title" style={{marginTop:6}}>Cerca gare</h1>
-         <FiltersBar value={filters} onChange={(v)=>{ setPage(1); setFilters(v); }} countries={countries}/>
+
+        <FiltersBar
+          value={filters}
+          onChange={(v)=>{ setPage(1); setFilters(v); }}
+          countries={countries}
+        />
+
+        {error && <div className="alert error">⚠️ {error}</div>}
+
         <div className="search-results">
           {loading ? <p>Caricamento…</p> : (
             <>
@@ -532,6 +589,7 @@ useEffect(() => {
     </div>
   );
 }
+
 
 /* =========================
    Build Page (target + 3 slot suggeriti)
