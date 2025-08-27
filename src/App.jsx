@@ -460,22 +460,27 @@ function FiltersBar({ value, onChange, countries }) {
 
       <div className="filters-toolbar__actions">
         <button
-          className="btn btn-outline"
-          onClick={()=>{
-            const resetUI = { country:"", city:"", distance:"", q:"", type:"", fromDate: safeDateToDMY(new Date()), toDate:"" };
-            setLocal(resetUI);
-            onChange({ ...resetUI, fromDate: todayISO() }); // al backend inviamo ISO
-          }}
-        >Reset</button>
+  className="btn btn-outline"
+  onClick={()=>{
+    const resetUI = {
+      country: "",
+      city: "",
+      distance: "",
+      q: "",
+      type: "",
+      fromDate: safeDateToDMY(new Date()), // oggi in UI gg/mm/aaaa
+      toDate: ""
+    };
+    setLocal(resetUI);
+    onChange(resetUI); // il parent convertirà alla fetch
+  }}
+>Reset</button>
+
 
         <button
           className="btn btn-primary"
           onClick={()=>{
-            // dd/mm/yyyy -> yyyy-mm-dd per l'API
-            const payload = { ...local };
-            if (local.fromDate) payload.fromDate = dmyToIso(local.fromDate);
-            if (local.toDate)   payload.toDate   = dmyToIso(local.toDate);
-            onChange(payload);
+            onChange({ ...local });
           }}
         >Applica</button>
       </div>
@@ -523,21 +528,26 @@ function SearchPage({ onDetails, onSelect, initialFilters }) {
 
   // carica gare
   useEffect(() => {
-    let ignore=false;
-    (async()=>{
-      setLoading(true);
-      setError("");
-      try{
-        const res = await fetchRaces({ ...filters, page, limit });
-        if (!ignore) setData(res || { items:[], total:0 });
-      }catch(e){
-        if (!ignore) setError(String(e.message||e));
-      }finally{
-        if (!ignore) setLoading(false);
-      }
-    })();
-    return ()=>{ ignore=true };
-  }, [filters, page, limit]);
+  let ignore=false;
+  (async()=>{
+    setLoading(true);
+    setError?.("");
+    try{
+      // ✅ Convertiamo QUI (UI -> API) prima della fetch
+      const payload = { ...filters, page, limit };
+      if (filters.fromDate) payload.fromDate = dmyToIso(filters.fromDate); // "dd/mm/yyyy" -> "yyyy-mm-dd"
+      if (filters.toDate)   payload.toDate   = dmyToIso(filters.toDate);
+
+      const res = await fetchRaces(payload);
+      if (!ignore) setData(res || { items:[], total:0 });
+    }catch(e){
+      if (!ignore) setError?.(String(e.message||e));
+    }finally{
+      if (!ignore) setLoading(false);
+    }
+  })();
+  return ()=>{ ignore=true };
+}, [filters, page, limit]);
 
   const totalPages = Math.max(1, Math.ceil((data?.total || 0) / limit));
 
