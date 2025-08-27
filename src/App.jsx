@@ -359,18 +359,6 @@ const DISTANCE_OPTIONS = [
   { label: "100K", value: "100" }
 ];
 
-const DISTANCE_OPTIONS = [
-  { label: "Tutte le distanze", value: "" },
-  { label: "5K", value: "5" },
-  { label: "10K", value: "10" },
-  { label: "15K", value: "15" },
-  { label: "21.1K (Mezza)", value: "21.1" },
-  { label: "30K", value: "30" },
-  { label: "42.2K (Maratona)", value: "42.2" },
-  { label: "50K", value: "50" },
-  { label: "100K", value: "100" }
-];
-
 function FiltersBar({ value, onChange, countries }) {
   // countries viene sempre passato (array); difendi contro undefined
   const listCountries = Array.isArray(countries) ? countries : [];
