@@ -138,6 +138,11 @@ a.link:hover{ border-color:var(--green); }
 @media(max-width: 640px){
   .filters-toolbar__grid{ grid-template-columns: 1fr; }
 }
+.filters-toolbar__actions .btn,
+.filters-toolbar__actions .btn-outline{
+  height:44px; display:inline-flex; align-items:center;
+}
+
 
 /* ---------------- Calendar Dropdown ---------------- */
 .caldd{ position: relative; }
