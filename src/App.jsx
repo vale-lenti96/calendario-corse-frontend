@@ -1,4 +1,5 @@
 // src/App.jsx
+import "./App.css";
 import React, { useEffect, useMemo, useState } from "react";
 
 /* ========== Config ========== */
