@@ -422,13 +422,6 @@ function FiltersBar({ value, onChange, countries }) {
           ))}
         </select>
 
-        <input
-          className="input"
-          placeholder="Tipo gara (es. marathon, trail)"
-          value={local.type}
-          onChange={e=>setLocal(s=>({...s, type:e.target.value}))}
-        />
-
         <select
           className="input"
           value={local.distance}
