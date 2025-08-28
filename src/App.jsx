@@ -330,7 +330,7 @@ function Home({ onStartSearch, onOpenTool, onDetails, onSelect }) {
     return ()=>{ ignore=true };
   },[]);
 
-  const heroImg = `${import.meta.env.BASE_URL}public/images/hero-runner-sunset.jpg`;
+  const heroImg = `${import.meta.env.BASE_URL}images/vecteezy_runner-running-on-road-at-sunset-trees-and-city-background_68852330.jpeg`;
 
   return (
     <>
