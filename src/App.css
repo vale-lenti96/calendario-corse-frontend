@@ -1,233 +1,275 @@
 :root{
-  --green:#0b3d2e;
   --bg:#ffffff;
-  --text:#111;
-  --muted:#666;
-  --shadow:0 8px 24px rgba(0,0,0,.08);
-  --radius:14px;
-  --container:max(280px,min(1100px,92vw));
-}
-html,body,#root{height:100%;}
-body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";}
-*{box-sizing:border-box;}
+  --text:#111111;
+  --muted:#666666;
+  --line:#e6e6e6;
+  --shadow: 0 8px 24px rgba(0,0,0,.08);
 
-.container{width:var(--container);margin:0 auto;}
-.section{padding:22px 0;}
-.section-title{font-size:clamp(1.3rem,3.4vw,2rem);margin:0 0 14px;font-weight:900;}
-.kicker{font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);}
-.link{color:var(--green);text-decoration:underline;text-underline-offset:2px;}
-.input{width:100%;padding:10px 12px;border:1px solid #e6e6e6;border-radius:10px;background:#fff;}
-
-.btn{appearance:none;border:none;cursor:pointer;font-weight:800;padding:10px 14px;border-radius:12px;transition:transform .05s ease,opacity .2s;}
-.btn:active{transform:translateY(1px);}
-.btn-primary{background:var(--green);color:#fff;}
-.btn-primary:hover{opacity:.92;}
-.btn-outline{background:#fff;color:var(--green);border:2px solid var(--green);}
-.btn-outline:hover{background:var(--green);color:#fff;}
-.link-like{background:none;border:none;color:var(--green);text-align:left;font-weight:800;cursor:pointer;padding:8px 0;}
-
-/* Topbar */
-.topbar{position:sticky;top:0;background:#fff;border-bottom:1px solid #eee;z-index:40;}
-.topbar__inner{display:flex;align-items:center;justify-content:space-between;height:56px;}
-.topbar__left{display:flex;align-items:center;gap:10px;}
-.brand{font-size:1.1rem;font-weight:900;letter-spacing:.02em;color:var(--green);}
-.topbar__nav{display:flex;gap:8px;}
-.navlink{background:transparent;border:none;cursor:pointer;padding:8px 10px;border-radius:10px;color:#111;font-weight:700;}
-.navlink.active,.navlink:hover{background:#f3f7f5;color:var(--green);}
-
-.burger{width:42px;height:42px;border-radius:12px;background:#fff;border:1px solid #eee;display:flex;flex-direction:column;gap:5px;align-items:center;justify-content:center;cursor:pointer;}
-.burger span{display:block;width:22px;height:2px;background:#222;border-radius:2px;}
-.burger--inline{background:#fff;}
-
-.offcanvas{
-  position:fixed;inset:0 0 0 auto;width:min(360px,92vw);background:#fff;box-shadow:-16px 0 40px rgba(0,0,0,.12);
-  transform:translateX(100%);transition:transform .25s ease;z-index:60;display:flex;flex-direction:column;
-}
-.offcanvas.open{transform:translateX(0);}
-.offcanvas__header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #eee;}
-.offcanvas__nav{display:flex;flex-direction:column;padding:16px;}
-.offcanvas__footer{margin-top:auto;padding:12px 16px;color:#888;border-top:1px solid #eee;}
-
-/* Hero blur */
-.hero{position:relative;min-height:68vh;display:grid;place-items:center;overflow:hidden;}
-.hero__bg{position:absolute;inset:-20px;background-position:center;background-size:cover;background-repeat:no-repeat;filter:blur(8px) saturate(1.1);transform:scale(1.05);}
-.hero__scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.25) 0%, rgba(0,0,0,.55) 65%, rgba(0,0,0,.75) 100%);}
-.hero__content{position:relative;z-index:1;text-align:center;color:#fff;padding:24px;}
-.hero__title{margin:0 0 8px;font-weight:900;font-size:clamp(1.8rem,5vw,3rem);letter-spacing:.01em;}
-.hero__subtitle{margin:0 0 18px;opacity:.95;font-size:clamp(1rem,2.1vw,1.25rem);}
-.hero__actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
-
-/* Cards & pagination */
-.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;}
-.pagination{display:flex;gap:8px;justify-content:center;margin:20px 0 40px;}
-.pagination__info{padding:8px 12px;border-radius:10px;background:#f6f6f6;border:1px solid #eee;}
-
-/* Race Card */
-.race-card {
-  border-radius: var(--radius);
-  overflow: hidden;
-  background: #fff;
-  color: #111;
-  box-shadow: var(--shadow);
-  display: flex;
-  flex-direction: column;
-  transition: transform .15s ease, box-shadow .15s ease;
-}
-.race-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(0,0,0,.12);
+  /* dark-autumn accents */
+  --green:#0b3d2e;         /* dark green primary */
+  --green-2:#135846;       /* hover */
+  --accent:#cfe9dd;        /* soft green tint */
+  --accent-2:#eef7f0;      /* lighter green tint */
 }
 
-.race-card__image-wrap {
-  width: 100%;
-  height: 180px;               /* altezza fissa */
-  background: #f2f2f2;
-  overflow: hidden;
-}
-.race-card__img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
+*{ box-sizing:border-box; }
+html,body,#root{ height:100%; }
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";
+  background:var(--bg);
+  color:var(--text);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
 }
 
-.race-card__body {
-  flex: 1;                     /* occupa tutto lo spazio disponibile */
-  display: flex;
-  flex-direction: column;
-  padding: 14px 16px 16px;
+a.link{ color:var(--green); text-decoration:none; border-bottom:1px solid transparent; }
+a.link:hover{ border-color:var(--green); }
+
+.container{ width:100%; max-width:1120px; margin:0 auto; padding:0 16px; }
+.section{ padding:28px 0; }
+.section-title{ font-size:1.6rem; font-weight:900; margin:0 0 12px; }
+
+.mt-16{ margin-top:16px; }
+
+/* ---------------- Topbar & Offcanvas ---------------- */
+.topbar{
+  position:sticky; top:0; z-index:30;
+  background:#fff; border-bottom:1px solid var(--line);
+}
+.topbar__inner{ display:flex; align-items:center; justify-content:space-between; height:56px; }
+.topbar__brand{ display:flex; align-items:center; gap:8px; font-weight:900; cursor:pointer; }
+.brand__logo{ width:28px; height:28px; display:block; }
+.brand__name{ font-size:1.05rem; }
+
+.topbar__nav{ display:flex; gap:8px; }
+.navlink{
+  padding:8px 12px; border-radius:10px; background:transparent; border:1px solid transparent; cursor:pointer;
+  font:inherit;
+}
+.navlink:hover{ background:#f7f7f7; }
+.navlink.active{ border-color:var(--line); }
+
+.hamburger{
+  border:1px solid var(--line); background:#fff; border-radius:10px; padding:6px 10px; cursor:pointer;
+}
+.hide-on-mobile{ display:flex; }
+.show-on-mobile{ display:none; }
+
+@media(max-width: 860px){
+  .hide-on-mobile{ display:none; }
+  .show-on-mobile{ display:inline-flex; }
 }
 
-.race-card__title {
-  font-size: 1.05rem;
-  font-weight: 900;
-  margin: 0 0 6px;
+.offcanvas{ position:fixed; inset:0; z-index:40; }
+.offcanvas__backdrop{ position:absolute; inset:0; background:rgba(0,0,0,.4); }
+.offcanvas__panel{
+  position:absolute; right:0; top:0; bottom:0; width:78%;
+  background:#fff; box-shadow:var(--shadow); padding:16px;
+  display:flex; flex-direction:column; gap:12px;
 }
-.race-card__meta {
-  margin: 2px 0;
-  font-size: .92rem;
-  color: #333;
+.offcanvas__close{
+  align-self:flex-end; border:1px solid var(--line); background:#fff; border-radius:10px; padding:6px 10px; cursor:pointer;
 }
-.race-card__badge {
-  display: inline-block;
-  margin-top: 8px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  font-size: .78rem;
-  background: #eef7f0;
-  color: #0f5a3a;
+.offcanvas__nav{ display:flex; flex-direction:column; gap:10px; }
+.link-like{
+  text-align:left; border:1px solid var(--line); background:#fff; border-radius:10px; padding:10px 12px; cursor:pointer;
 }
 
-/* 🔽 questa parte forza i bottoni in basso */
-.race-card__actions {
-  margin-top: auto;            /* spinge i bottoni in basso */
-  display: flex;
-  gap: 8px;
+/* ---------------- Hero ---------------- */
+.hero{
+  position:relative; overflow:hidden; min-height:64vh; display:flex; align-items:center;
 }
-.race-card:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(0,0,0,.12);}
-.race-card__image-wrap {
-  width: 100%;
-  height: 150px;        /* altezza fissa */
-  background: #f2f2f2;
-  overflow: hidden;
+.hero__bg-img{
+  position:absolute; inset:0; width:100%; height:180px; object-fit:cover;
+  transform:scale(1.08); filter:blur(6px) saturate(105%);
 }
-.race-card__img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;    /* riempie il box ritagliando */
-  display: block;
+.hero__scrim{
+  position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,.30), rgba(0,0,0,.25));
 }
-.race-card__title{font-size:1.05rem;font-weight:900;margin:0 0 6px;}
-.race-card__meta{margin:2px 0;font-size:.92rem;color:#333;}
-.race-card__badge{display:inline-block;margin-top:8px;padding:4px 8px;border-radius:999px;font-size:.78rem;background:#eef7f0;color:#0f5a3a;}
-
-/* Filters toolbar (no map) */
-.filters-toolbar{background:#fff;border:1px solid #eee;border-radius:12px;box-shadow:var(--shadow);padding:12px;margin-bottom:16px;}
-.filters-toolbar__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}
-.filters-toolbar__actions{margin-top:12px;display:flex;justify-content:flex-end;gap:8px;}
-
-/* Search results wrapper */
-.search-results{min-height:200px;}
-
-/* Race details */
-.race-details__hero{position:relative;max-height:60vh;overflow:hidden;}
-.race-details__img{width:100%;height:60vh;object-fit:cover;display:block;filter:saturate(1.05);}
-.race-details__overlay{position:absolute;inset:auto 0 0 0;padding:24px 20px;background:linear-gradient(180deg,rgba(0,0,0,0) 0%, rgba(0,0,0,.55) 60%, rgba(0,0,0,.75) 100%);color:#fff;text-align:left;}
-.race-details__title{margin:0 0 6px;font-size:clamp(1.4rem,2.8vw,2.2rem);font-weight:900;}
-.race-details__subtitle{margin:0;opacity:.95;}
-.race-details__content{padding:20px 0 40px;}
-.race-details__grid{display:grid;grid-template-columns:1fr;gap:18px;}
-.race-details__left p{margin:8px 0;}
-.mt-16{margin-top:16px;}
-
-/* Build plan */
-.target-panel{margin:14px 0 20px;padding:16px;border-radius:12px;background:#fff;box-shadow:var(--shadow);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
-.target-title{margin:6px 0;font-weight:900;font-size:1.2rem;}
-.target-meta{color:#333;}
-.build-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:18px 0 42px;}
-.build-slot{background:#fff;border-radius:12px;box-shadow:var(--shadow);padding:14px;}
-.slot-head{font-weight:900;margin-bottom:10px;}
-.selected-slot__card{margin:10px 0;}
-.selected-slot .kicker{color:var(--green);}
-
-/* Responsive */
-@media (max-width: 1000px){
-  .filters-toolbar__grid{grid-template-columns:repeat(2,minmax(0,1fr));}
-  .build-grid{grid-template-columns:1fr;}
+.hero__content{
+  position:relative; z-index:2; width:100%;
+  text-align:center; color:#fff; padding:32px 16px;
 }
-@media (max-width: 560px){
-  .filters-toolbar__grid{grid-template-columns:1fr;}
-  .hero{min-height:62vh;}
+.hero__title{ font-size: clamp(28px, 6vw, 52px); margin:0 0 8px; font-weight:1000; letter-spacing:.2px; }
+.hero__subtitle{ margin:0 auto 16px; max-width:740px; line-height:1.35; }
+.hero__actions{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+
+/* ---------------- Inputs & Buttons ---------------- */
+.input{
+  width:100%;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:#fff;
+  font:inherit;
 }
-/* ===== Calendar dropdown ===== */
+.input:focus{ outline:none; border-color:#c9c9c9; }
+
+.btn{
+  border:1px solid var(--green); background:var(--green); color:#fff;
+  padding:10px 14px; border-radius:10px; font-weight:700; cursor:pointer;
+}
+.btn:hover{ background:var(--green-2); border-color:var(--green-2); }
+.btn:disabled{ opacity:.5; cursor:not-allowed; }
+
+.btn-outline{
+  background:#fff; color:var(--green); border:1px solid var(--green);
+}
+.btn-outline:hover{ background:#f1faf5; }
+
+.alert.error{ margin:10px 0; padding:10px 12px; border-radius:10px; background:#fff3f0; color:#b4371f; border:1px solid #ffd2c6; }
+
+/* ---------------- Filters Toolbar ---------------- */
+.filters-toolbar{ margin:8px 0 14px; }
+.filters-toolbar__grid{
+  display:grid; gap:10px;
+  grid-template-columns: repeat(6, 1fr);
+}
+.filters-toolbar__actions{ margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; }
+
+.filters-toolbar__dates label{
+  display:block; font-size:.8rem; color:#555; margin:0 0 6px;
+}
+
+@media(max-width: 980px){
+  .filters-toolbar__grid{ grid-template-columns: repeat(3, 1fr); }
+}
+@media(max-width: 640px){
+  .filters-toolbar__grid{ grid-template-columns: 1fr; }
+}
+
+/* ---------------- Calendar Dropdown ---------------- */
 .caldd{ position: relative; }
 .caldd__inputwrap{ display:flex; gap:6px; }
 .caldd__input{ flex:1; }
 .caldd__btn{
-  border:1px solid #e6e6e6;
-  background:#fff;
-  border-radius:10px;
-  padding:0 10px;
-  cursor:pointer;
+  border:1px solid var(--line); background:#fff; border-radius:10px; padding:0 10px; cursor:pointer;
 }
 .caldd__popover{
-  position:absolute; z-index:50;
-  top: calc(100% + 8px); left:0;
+  position:absolute; z-index:50; top: calc(100% + 8px); left:0;
   background:#fff; border:1px solid #eee; border-radius:12px;
-  box-shadow: 0 12px 28px rgba(0,0,0,.12);
-  padding:12px; min-width:260px;
+  box-shadow: 0 12px 28px rgba(0,0,0,.12); padding:12px; min-width:260px;
 }
 .caldd__header{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
 .caldd__month{ font-weight:900; }
 .caldd__nav{ padding:6px 10px; }
-.caldd__grid{
-  display:grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap:6px;
-}
+.caldd__grid{ display:grid; grid-template-columns: repeat(7, 1fr); gap:6px; }
 .caldd__dow{ margin-bottom:6px; }
-.caldd__dowcell{
-  font-size:.78rem; color:#666; text-align:center; padding:4px 0;
-}
-.caldd__cell{
-  background:#f9f9f9; border:1px solid #eee; border-radius:10px;
-  padding:8px 0; text-align:center; cursor:pointer;
-}
+.caldd__dowcell{ font-size:.78rem; color:#666; text-align:center; padding:4px 0; }
+.caldd__cell{ background:#f9f9f9; border:1px solid #eee; border-radius:10px; padding:8px 0; text-align:center; cursor:pointer; }
 .caldd__cell--pad{ background:transparent; border:none; }
-.caldd__cell--sel{ background:#e9f4ef; border-color:#cfe9dd; font-weight:800; color:#0b3d2e; }
+.caldd__cell--sel{ background:var(--accent-2); border-color:var(--accent); font-weight:800; color:var(--green); }
 .caldd__footer{ display:flex; justify-content:space-between; gap:8px; margin-top:8px; }
 
-/* opzionale: restringi i campi date nella griglia filtri */
-.filters-toolbar__dates label{display:block;font-size:.8rem;color:#555;margin:0 0 6px;}
+/* ---------------- Cards Grid + Race Card ---------------- */
+.cards-grid{
+  display:grid; gap:12px;
+  grid-template-columns: repeat(3, 1fr);
+}
+@media(max-width: 980px){
+  .cards-grid{ grid-template-columns: repeat(2, 1fr); }
+}
+@media(max-width: 640px){
+  .cards-grid{ grid-template-columns: 1fr; }
+}
 
-/* Pills per schema slot */
+.race-card{
+  display:flex; flex-direction:column;
+  background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow: var(--shadow);
+  overflow:hidden; min-height: 380px;
+}
+.race-card__image-wrap{
+  height: 180px; overflow:hidden;
+  background:#f4f4f4;
+}
+.race-card__img{
+  width:100%; height:100%; object-fit:cover; display:block;
+  transition: transform .35s ease;
+}
+.race-card:hover .race-card__img{ transform: scale(1.03); }
+
+.race-card__body{
+  display:flex; flex-direction:column; gap:6px;
+  padding:12px; flex:1;
+}
+.race-card__title{ margin:0; font-size:1.05rem; font-weight:900; line-height:1.25; }
+.race-card__meta{ margin:0; color:#3f3f3f; font-size:.95rem; }
+.race-card__badge{
+  margin:0; font-size:.85rem; color:#0b3d2e; background:var(--accent-2);
+  border:1px solid var(--accent); display:inline-block; padding:3px 8px; border-radius:999px;
+}
+.race-card__actions{
+  margin-top:auto; display:flex; gap:8px; flex-wrap:wrap;
+}
+
+/* ---------------- Pagination ---------------- */
+.pagination{ display:flex; align-items:center; gap:10px; justify-content:center; margin:14px 0 4px; }
+.pagination__info{ font-weight:700; }
+
+/* ---------------- Race Details ---------------- */
+.race-details__hero{
+  position:relative; height: 300px; overflow:hidden; background:#f4f4f4;
+}
+.race-details__img{
+  width:100%; height:100%; object-fit:cover; display:block; filter: saturate(105%);
+}
+.race-details__overlay{
+  position:absolute; inset:0; background:linear-gradient(0deg, rgba(0,0,0,.45), rgba(0,0,0,.15));
+  color:#fff; display:flex; flex-direction:column; justify-content:flex-end; padding:16px;
+}
+.race-details__title{ margin:0; font-size:1.8rem; font-weight:1000; }
+.race-details__subtitle{ margin:4px 0 0; color:#f1f1f1; }
+.race-details__content{ padding:16px 0; }
+
+/* ---------------- Build Page ---------------- */
+.target-panel{
+  border:1px solid var(--line); border-radius:12px; background:#fff; box-shadow:var(--shadow);
+  padding:12px; display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px;
+}
+.target-title{ margin:0; font-weight:1000; }
+.target-meta{ color:#3f3f3f; }
+.kicker{ text-transform:uppercase; letter-spacing:.08em; font-size:.75rem; color:#666; }
+
 .slot-plan-hint{ display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 12px; }
-.slot-pill{ background:#eef7f0; color:#0b3d2e; border:1px solid #cfe9dd; border-radius:999px; padding:6px 10px; font-size:.85rem; }
+.slot-pill{
+  background:var(--accent-2); color:var(--green);
+  border:1px solid var(--accent); border-radius:999px; padding:6px 10px; font-size:.85rem;
+}
 
-/* My Plans */
-.plans-list{ display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; }
-.plan-card{ background:#fff; border:1px solid #eee; border-radius:12px; box-shadow:var(--shadow); padding:12px; display:flex; flex-direction:column; gap:10px; }
+.build-grid{
+  display:grid; gap:12px;
+  grid-template-columns: repeat(3, 1fr);
+}
+@media(max-width: 980px){
+  .build-grid{ grid-template-columns: repeat(2, 1fr); }
+}
+@media(max-width: 640px){
+  .build-grid{ grid-template-columns: 1fr; }
+}
+.build-slot{
+  background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow);
+  padding:12px; display:flex; flex-direction:column; gap:10px;
+}
+.slot-head{ font-weight:900; }
+
+.selected-slot .selected-slot__card .race-card{ min-height:auto; }
+
+/* ---------------- My Plans ---------------- */
+.plans-list{
+  display:grid; gap:12px;
+  grid-template-columns: repeat(3, 1fr);
+}
+@media(max-width: 980px){
+  .plans-list{ grid-template-columns: repeat(2, 1fr); }
+}
+@media(max-width: 640px){
+  .plans-list{ grid-template-columns: 1fr; }
+}
+.plan-card{
+  background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow);
+  padding:12px; display:flex; flex-direction:column; gap:10px;
+}
 .plan-card__hdr h3{ margin:0; font-size:1rem; font-weight:900; }
 .plan-card__meta{ color:#444; font-size:.9rem; }
-.plan-card__actions{ display:flex; gap:8px; }
-
+.plan-card__actions{ display:flex; gap:8px; flex-wrap:wrap; }
