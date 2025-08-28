@@ -868,7 +868,7 @@ function MyPlans({ plans = [], deletePlan, onOpen }) {
 /* Topbar semplice + menu hamburger */
 function TopBar({ view, onNav }) {
   const [open, setOpen] = useState(false);
-  const logo = `${import.meta.env.BASE_URL}images/logo-runshift-R-mountain-road.svg`;
+  const logo = `${import.meta.env.BASE_URL}images/logo-runshift-R-mountain-road.png`;
 
   return (
     <>
