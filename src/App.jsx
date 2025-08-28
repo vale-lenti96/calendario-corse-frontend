@@ -798,7 +798,14 @@ function BuildPage({ targetRace, onBackToSearch, onSaved }) {
     const id = savePlan(plan);
     onSaved?.(id);
   };
-
+{view==="build" && (
+  <BuildPage
+    targetRace={targetRace}
+    onBackToSearch={()=>navigate("search")}
+    onSaved={(id)=>{ setEditingPlanId(id); navigate("plans"); }}
+    savePlan={savePlan}         // <-- aggiunto
+  />
+)}
   return (
     <div className="section">
       <div className="container">
@@ -923,6 +930,21 @@ function Home({ onPrimary, onSecondary, onDetails }) {
 
 function MyPlans({ onOpen }) {
   const { plans, deletePlan } = usePlansStorage();
+   
+  {view==="plans" && (
+  <MyPlans
+    plans={plans}               // <-- aggiunto
+    deletePlan={deletePlan}     // <-- aggiunto
+    onOpen={(id)=>{
+      const plan = getPlan(id);
+      if (plan?.target) {
+        setTargetRace(plan.target);
+        sessionStorage.setItem("runshift_current_slots", JSON.stringify(plan.slots || [null,null,null]));
+        navigate("build");
+      }
+    }}
+  />
+)}
 
   return (
     <div className="section">
@@ -964,6 +986,9 @@ export default function App(){
   const [targetRace, setTargetRace] = useState(null);
   const [editingPlanId, setEditingPlanId] = useState(null);
   const navigate = (v)=>{ setView(v); window.scrollTo(0,0); };
+  const plansApi = usePlansStorage();           // ✅ UNICA istanza
+  const { plans, savePlan, deletePlan, getPlan } = plansApi;
+
 
   const handleDetails = async (race)=>{
     try {
@@ -983,8 +1008,7 @@ export default function App(){
     setView("build");
     window.scrollTo(0,0);
   };
-   const plansApi = usePlansStorage(); // <-- chiamalo una volta qui in App
-   const { getPlan } = plansApi;
+
   return (
     <div>
       <TopBar onNav={navigate} view={view} setMenuOpen={setMenuOpen} />
