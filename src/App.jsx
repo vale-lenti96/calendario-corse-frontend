@@ -409,7 +409,7 @@ function FiltersBar({ value, onChange, countries }) {
   }, [value?.country, value?.city, value?.distance, value?.q, value?.type, value?.fromDate, value?.toDate]);
 
   return (
-    <div className="filters-toolbar">
+    <div className="filters-toolbar filters-toolbar--balanced">
       <div className="filters-toolbar__grid">
         <select
           className="input"
@@ -451,8 +451,8 @@ function FiltersBar({ value, onChange, countries }) {
           <CalendarDropdown
             value={local.fromDate || ""}
             onChange={(v)=>setLocal(s=>({...s, fromDate:v}))}
-            placeholder="gg/mm/aaaa"
-          />
+            placeholder="Dal (gg/mm/aaaa)"
+            />
         </div>
 
         <div className="filters-toolbar__dates">
@@ -460,8 +460,8 @@ function FiltersBar({ value, onChange, countries }) {
           <CalendarDropdown
             value={local.toDate || ""}
             onChange={(v)=>setLocal(s=>({...s, toDate:v}))}
-            placeholder="gg/mm/aaaa"
-          />
+            placeholder="Al (gg/mm/aaaa)"
+            />
         </div>
 
         <input
@@ -716,7 +716,7 @@ function BuildPage({ targetRace, onBackToSearch, onSaved, savePlan }) {
   }, [targetRace, userFilters, slotPlan]);
 
   const SuggestionsFilters = (
-    <div className="filters-toolbar" style={{marginTop:8}}>
+    <div className="filters-toolbar filters-toolbar--balanced" style={{marginTop:8}}>
       <div className="filters-toolbar__grid">
         <select className="input" value={userFilters.country} onChange={e=>setUserFilters(s=>({...s,country:e.target.value}))}>
           <option value="">Tutti i paesi</option>
@@ -725,11 +725,19 @@ function BuildPage({ targetRace, onBackToSearch, onSaved, savePlan }) {
         <input className="input" placeholder="Città" value={userFilters.city} onChange={e=>setUserFilters(s=>({...s,city:e.target.value}))}/>
         <div className="filters-toolbar__dates">
           <label>Dal</label>
-          <CalendarDropdown value={userFilters.fromDate||""} onChange={(v)=>setUserFilters(s=>({...s,fromDate:v}))}/>
+          <CalendarDropdown
+  value={userFilters.fromDate||""}
+  onChange={(v)=>setUserFilters(s=>({...s,fromDate:v}))}
+  placeholder="Dal (gg/mm/aaaa)"
+/>
         </div>
         <div className="filters-toolbar__dates">
           <label>Al</label>
-          <CalendarDropdown value={userFilters.toDate||""} onChange={(v)=>setUserFilters(s=>({...s,toDate:v}))}/>
+          <CalendarDropdown
+  value={userFilters.toDate||""}
+  onChange={(v)=>setUserFilters(s=>({...s,toDate:v}))}
+  placeholder="Al (gg/mm/aaaa)"
+/>
         </div>
       </div>
       <div className="filters-toolbar__actions">
