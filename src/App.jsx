@@ -122,10 +122,29 @@ function recommendSlots(targetRace){
 
 
 /* Estrae numeri (km) da "42 / 21.1 / 10" */
-function parseDistanceSet(distance_km = "") {
-  const nums = (distance_km.match(/(\d+(?:\.\d+)?)/g) || []).map(Number);
-  return [...new Set(nums)].sort((a,b)=>a-b);
+/* ==== Distance helpers ==== */
+function parseDistanceSet(str) {
+  if (!str) return [];
+  // es: "5K, 10k; 21.1 | 42.2" -> [5,10,21.1,42.2]
+  const tokens = String(str).split(/[^0-9.,]+/).filter(Boolean);
+  const nums = tokens.map(t => parseFloat(t.replace(",", "."))).filter(n => Number.isFinite(n));
+  // de-dup con arrotondamento a 1 decimale
+  const seen = new Set();
+  const out = [];
+  for (const n of nums) {
+    const key = Math.round(n * 10) / 10;
+    if (!seen.has(key)) { seen.add(key); out.push(key); }
+  }
+  return out.sort((a,b)=>a-b);
 }
+function hasDistance(race, targetKm) {
+  if (!targetKm) return true;
+  const set = parseDistanceSet(race?.distance_km || "");
+  // tolleranza per 21.1/42.2 ecc.
+  const tol = 0.3;
+  return set.some(d => Math.abs(d - targetKm) <= tol);
+}
+
 
 /* =========================
    CalendarDropdown (no libs) - dd/mm/yyyy
@@ -727,7 +746,9 @@ function BuildPage({ targetRace, onBackToSearch, onSaved }) {
           const url = `${API_URL}/api/races?${p.toString()}`;
           const r = await fetch(url);
           const j = r.ok ? await r.json() : { items:[] };
-          out[i] = j.items || [];
+          // filtra client-side per distanza esatta dello slot
+           const filtered = (j.items || []).filter(it => hasDistance(it, s.dist));
+           out[i] = filtered;
         }
         if(!ignore) setSuggestions(out);
       }catch(e){
