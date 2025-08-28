@@ -81,7 +81,7 @@ a.link:hover{ border-color:var(--green); }
   position:relative; overflow:hidden; min-height:64vh; display:flex; align-items:center;
 }
 .hero__bg-img{
-  position:absolute; inset:0; width:100%; height:180px; object-fit:cover;
+  position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
   transform:scale(1.08); filter:blur(6px) saturate(105%);
 }
 .hero__scrim{
