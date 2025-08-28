@@ -54,28 +54,6 @@ function todayISO(){
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 /* ===== Plans storage (localStorage) ===== */
-function usePlansStorage() {
-  const KEY = "runshift_plans_v1";
-  const [plans, setPlans] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; }
-  });
-  useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify(plans)); } catch {} }, [plans]);
-
-  const savePlan = (plan) => {
-    const id = plan.id || (crypto.randomUUID?.() || String(Date.now()));
-    const withId = { ...plan, id, updatedAt: new Date().toISOString() };
-    setPlans(prev => {
-      const i = prev.findIndex(p => p.id === id);
-      if (i >= 0) { const c=[...prev]; c[i]=withId; return c; }
-      return [{ ...withId, createdAt: new Date().toISOString() }, ...prev];
-    });
-    return id;
-  };
-  const deletePlan = (id) => setPlans(prev => prev.filter(p => p.id !== id));
-  const getPlan = (id) => plans.find(p => p.id === id) || null;
-
-  return { plans, savePlan, deletePlan, getPlan };
-}
 
 /* ===== Slot recommendation: distanza & label in base alla target ===== */
 function recommendSlots(targetRace){
@@ -1055,4 +1033,27 @@ export default function App(){
     </div>
   );
 }
+function usePlansStorage() {
+  const KEY = "runshift_plans_v1";
+  const [plans, setPlans] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; }
+  });
+  useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify(plans)); } catch {} }, [plans]);
+
+  const savePlan = (plan) => {
+    const id = plan.id || (crypto.randomUUID?.() || String(Date.now()));
+    const withId = { ...plan, id, updatedAt: new Date().toISOString() };
+    setPlans(prev => {
+      const i = prev.findIndex(p => p.id === id);
+      if (i >= 0) { const c=[...prev]; c[i]=withId; return c; }
+      return [{ ...withId, createdAt: new Date().toISOString() }, ...prev];
+    });
+    return id;
+  };
+  const deletePlan = (id) => setPlans(prev => prev.filter(p => p.id !== id));
+  const getPlan = (id) => plans.find(p => p.id === id) || null;
+
+  return { plans, savePlan, deletePlan, getPlan };
+}
+
 
