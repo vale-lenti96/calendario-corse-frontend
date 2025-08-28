@@ -785,19 +785,6 @@ function BuildPage({ targetRace, onBackToSearch, onSaved, savePlan }) {
   );
 
   // Salvataggio piano
-  const canSave = targetRace && slots.some(Boolean);
-const handleSave = () => {
-  if (!canSave) return;
-  const plan = {
-    id: undefined, // verrà generato
-    name: `${targetRace.race_name} • Build plan`,
-    target: targetRace,
-    slots,
-  };
-  // usa la funzione passata dal parent (App)
-  const id = typeof savePlan === "function" ? savePlan(plan) : null;
-  if (id) onSaved?.(id);
-};
 
   const canSave = targetRace && slots.some(Boolean);
   const handleSave = () => {
