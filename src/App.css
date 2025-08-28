@@ -273,3 +273,63 @@ a.link:hover{ border-color:var(--green); }
 .plan-card__hdr h3{ margin:0; font-size:1rem; font-weight:900; }
 .plan-card__meta{ color:#444; font-size:.9rem; }
 .plan-card__actions{ display:flex; gap:8px; flex-wrap:wrap; }
+
+/* === NEW: Balanced filter controls (uguale altezza e simmetrici) === */
+.input{
+  height:44px;                /* forza stessa altezza su input/select */
+  line-height:44px;
+  padding:0 12px;             /* vertical padding 0, centratura verticale */
+}
+
+select.input{
+  padding-right: 32px;        /* spazio freccia select */
+  line-height: normal;        /* per i select alcuni browser */
+}
+
+/* Griglia filtri simmetrica */
+.filters-toolbar--balanced .filters-toolbar__grid{
+  align-items: stretch;       /* tutte le celle si allineano in altezza */
+}
+
+/* Calendario: input + bottone stessa altezza dei campi normali */
+.caldd__inputwrap{
+  display:grid;
+  grid-template-columns: 1fr 44px;  /* input + bottone */
+  align-items: stretch;
+  height:44px;                       /* altezza esatta */
+}
+.caldd__input{
+  height:44px; line-height:44px; padding:0 12px;
+}
+.caldd__btn{
+  height:44px; display:flex; align-items:center; justify-content:center;
+  border:1px solid var(--line); background:#fff; border-radius:10px; cursor:pointer;
+}
+
+/* Rimuove il margine dei label nei filtri, così tutto è allineato in una riga */
+.filters-toolbar__dates label{ display:none; }
+
+/* Spaziatura coerente tra i campi */
+.filters-toolbar__grid > *{
+  min-width:0;    /* per evitare overflow su mobile */
+}
+
+/* === NEW: Build suggestions cards with stable size === */
+.build-slot .cards-grid{
+  grid-template-columns: repeat(2, 1fr); /* 2 per colonna per dare respiro */
+}
+@media(max-width: 720px){
+  .build-slot .cards-grid{ grid-template-columns: 1fr; }
+}
+
+/* Card più compatte nel contesto build (evita effetto "allungate") */
+.build-slot .race-card{
+  min-height: 340px;
+}
+.build-slot .race-card__image-wrap{
+  height: 160px;             /* altezza immagine coerente e più bassa */
+}
+.build-slot .race-card__img{
+  object-fit: cover;         /* copre senza deformare */
+}
+
