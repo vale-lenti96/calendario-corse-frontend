@@ -672,7 +672,7 @@ function SearchPage({ onDetails, onSelect, initialFilters }) {
 /* =========================
    Build Page (target + 3 slot suggeriti)
 ========================= */
-function BuildPage({ targetRace, onBackToSearch, onSaved }) {
+function BuildPage({ targetRace, onBackToSearch, onSaved, savePlan }) {
   const [slots, setSlots] = useState([null, null, null]); // gare scelte
    useEffect(()=>{
   try{
@@ -785,7 +785,20 @@ function BuildPage({ targetRace, onBackToSearch, onSaved }) {
   );
 
   // Salvataggio piano
-  const { savePlan } = usePlansStorage(); // hook definito sopra
+  const canSave = targetRace && slots.some(Boolean);
+const handleSave = () => {
+  if (!canSave) return;
+  const plan = {
+    id: undefined, // verrà generato
+    name: `${targetRace.race_name} • Build plan`,
+    target: targetRace,
+    slots,
+  };
+  // usa la funzione passata dal parent (App)
+  const id = typeof savePlan === "function" ? savePlan(plan) : null;
+  if (id) onSaved?.(id);
+};
+
   const canSave = targetRace && slots.some(Boolean);
   const handleSave = () => {
     if (!canSave) return;
@@ -927,10 +940,8 @@ function Home({ onPrimary, onSecondary, onDetails }) {
     </>
   );
 }
-
-function MyPlans({ onOpen }) {
   const { plans, deletePlan } = usePlansStorage();
-   
+function MyPlans({ onOpen }) {   
   {view==="plans" && (
   <MyPlans
     plans={plans}               // <-- aggiunto
@@ -950,7 +961,7 @@ function MyPlans({ onOpen }) {
     <div className="section">
       <div className="container">
         <h1 className="section-title" style={{marginTop:6}}>My Plans</h1>
-        {plans.length === 0 ? (
+        {(!plans || plans.length === 0) ? (
           <p>Non hai ancora salvato alcun piano.</p>
         ) : (
           <div className="plans-list">
@@ -963,8 +974,8 @@ function MyPlans({ onOpen }) {
                   </div>
                 </div>
                 <div className="plan-card__actions">
-                  <button className="btn btn-primary" onClick={()=>onOpen(p.id)}>Apri / Modifica</button>
-                  <button className="btn btn-outline" onClick={()=>deletePlan(p.id)}>Elimina</button>
+                  <button className="btn btn-primary" onClick={()=>onOpen?.(p.id)}>Apri / Modifica</button>
+                  <button className="btn btn-outline" onClick={()=>deletePlan?.(p.id)}>Elimina</button>
                 </div>
               </div>
             ))}
@@ -974,7 +985,6 @@ function MyPlans({ onOpen }) {
     </div>
   );
 }
-
 
 /* =========================
    App root
