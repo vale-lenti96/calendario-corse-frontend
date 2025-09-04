@@ -2,15 +2,6 @@
 import "./App.css";
 import React, { useEffect, useMemo, useState } from "react";
 
-
-const [filters, setFilters] = useState({
-  q: "",
-  country: "",
-  raceType: "",
-  dateFrom: "", dateTo: "",
-  distanceCat: "", // ⬅️ nuova
-});
-
 /* ========== Config ========== */
 const API_URL = "https://backend-db-corse-v2.onrender.com";
 
@@ -92,6 +83,7 @@ const DISTANCE_CATEGORIES = [
 
 /** Estrae array di numeri (in km) da stringhe tipo
  *  "5 km", "10,0km", "Marathon 42.195", "21.1K + 10k"… */
+
 function parseKmList(distanceText) {
   if (!distanceText) return [];
   const txt = Array.isArray(distanceText) ? distanceText.join(", ") : String(distanceText);
