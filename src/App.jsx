@@ -2,6 +2,15 @@
 import "./App.css";
 import React, { useEffect, useMemo, useState } from "react";
 
+
+const [filters, setFilters] = useState({
+  q: "",
+  country: "",
+  raceType: "",
+  dateFrom: "", dateTo: "",
+  distanceCat: "", // ⬅️ nuova
+});
+
 /* ========== Config ========== */
 const API_URL = "https://backend-db-corse-v2.onrender.com";
 
@@ -67,6 +76,55 @@ function hasDistance(race, targetKm) {
   const set = parseDistanceSet(race?.distance_km || "");
   const tol = 0.3;
   return set.some(d => Math.abs(d - targetKm) <= tol);
+}
+/* ====== Distance filter helpers (categorie con range) ====== */
+const DISTANCE_CATEGORIES = [
+  { key: "",        label: "Tutte le distanze" },
+  { key: "5k",      label: "5K",            min: 4.0,   max: 6.0 },
+  { key: "10k",     label: "10K",           min: 8.0,   max: 12.0 },
+  { key: "15k",     label: "15K",           min: 13.0,  max: 17.0 },
+  { key: "half",    label: "Mezza (21.1K)", min: 20.0,  max: 22.8 },
+  { key: "25k",     label: "25K",           min: 23.0,  max: 27.0 },
+  { key: "30k",     label: "30K",           min: 28.0,  max: 32.0 },
+  { key: "marathon",label: "Maratona (42.2K)", min: 41.0, max: 43.5 },
+  { key: "ultra",   label: "Ultra (>43K)",  min: 43.5,  max: 10000.0 },
+];
+
+/** Estrae array di numeri (in km) da stringhe tipo
+ *  "5 km", "10,0km", "Marathon 42.195", "21.1K + 10k"… */
+function parseKmList(distanceText) {
+  if (!distanceText) return [];
+  const txt = Array.isArray(distanceText) ? distanceText.join(", ") : String(distanceText);
+  // Normalizza K/k in km (10k -> 10 km), virgole decimali in punto, rimuovi spazi extra
+  const norm = txt
+    .replace(/(\d)\s*[kK]\b/g, "$1 km")    // 10k -> 10 km
+    .replace(/,/g, ".")
+    .replace(/\s+/g, " ");
+  // Prendi tutte le cifre con eventuali decimali
+  const nums = norm.match(/(\d+(?:\.\d+)?)(?=\s*km|\b)/gi) || [];
+  // Converte e filtra outlier assurdi
+  const km = nums
+    .map(s => parseFloat(s))
+    .filter(v => isFinite(v) && v > 0 && v < 10000);
+  return Array.from(new Set(km)); // unici
+}
+
+/** Ritorna il range per la categoria selezionata */
+function getRangeForCategory(catKey) {
+  const found = DISTANCE_CATEGORIES.find(c => c.key === catKey);
+  if (!found || !found.min) return null;
+  return { min: found.min, max: found.max };
+}
+
+/** Verifica se una gara passa il filtro categoria distanza */
+function matchDistanceCategory(race, catKey) {
+  if (!catKey) return true; // nessun filtro
+  const range = getRangeForCategory(catKey);
+  if (!range) return true;
+  const distField = race?.distance_km ?? race?.distance ?? "";
+  const kms = parseKmList(distField);
+  if (kms.length === 0) return false;
+  return kms.some(v => v >= range.min && v <= range.max);
 }
 
 /* ===== Slot recommendation: distanza & label in base alla target ===== */
@@ -313,6 +371,13 @@ function RaceCard({ race, onSelect, onDetails }) {
   const distanceShort = Array.isArray(distance_km)
     ? distance_km.join(", ")
     : (distance_km || "").toString();
+  const kmNums = parseKmList(distance_km);
+  const distancePretty = kmNums.length ? kmNums.map(k => {
+  // format minimal: 42.2 -> "42.2 km", 5 -> "5 km"
+  const s = Number.isInteger(k) ? `${k}` : k.toFixed(1).replace(/\.0$/, "");
+  return `${s} km`;
+}).join(", ") : (distance_km || "");
+
 
   return (
     <div className="race-card">
@@ -417,7 +482,7 @@ function Home({ onStartSearch, onOpenTool, onDetails, onSelect }) {
           <p className="hero__subtitle">Dalle 5K alle ultramaratone: scopri gare e luoghi incredibili e costruisci il tuo calendario.</p>
           <div className="hero__actions">
             <button className="btn btn-primary" onClick={onStartSearch}>Cerca gare</button>
-            <button className="btn btn-outline" onClick={onOpenTool}>Inizia il percorso</button>
+            <button className="btn btn-outline" onClick={onOpenTool}>Trova gara target</button>
           </div>
         </div>
       </section>
@@ -491,15 +556,20 @@ function FiltersBar({ value, onChange, countries }) {
           ))}
         </select>
 
-        <select
-          className="input"
-          value={local.distance}
-          onChange={(e)=>setLocal(s=>({...s, distance:e.target.value}))}
-        >
-          {DISTANCE_OPTIONS.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
+        {/* Distanza (categoria) */}
+<div className="filter-field">
+  <label className="filter-label">Distanza</label>
+  <select
+    className="filter-input"
+    value={filters.distanceCat || ""}
+    onChange={(e) => setFilters(f => ({ ...f, distanceCat: e.target.value }))}
+  >
+    {DISTANCE_CATEGORIES.map(opt => (
+      <option key={opt.key} value={opt.key}>{opt.label}</option>
+    ))}
+  </select>
+</div>
+
 
         <input
           className="input"
@@ -613,6 +683,16 @@ function SearchPage({ onDetails, onSelect, initialFilters }) {
     })();
     return ()=>{ ignore=true };
   }, [filters, page, limit]);
+
+  const filteredRaces = useMemo(() => {
+  let out = races || [];
+  // ...altri filtri (testo, paese, data, tipo)...
+  if (filters.distanceCat && filters.distanceCat !== "") {
+    out = out.filter(r => matchDistanceCategory(r, filters.distanceCat));
+  }
+  return out;
+}, [races, filters]);
+
 
   const totalPages = Math.max(1, Math.ceil((data?.total || 0) / limit));
 
