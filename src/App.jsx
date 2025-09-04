@@ -283,33 +283,102 @@ function CalendarDropdown({ value, onChange, placeholder="gg/mm/aaaa" }) {
 }
 
 /* Card gara */
-function RaceCard({ race, onDetails, onSelect }) {
-  const img = race.image_thumb_url || race.image_url || `${import.meta.env.BASE_URL}images/placeholder.jpg`;
-  const dateStr = safeDateToDMY(race.date_ts);
+function RaceCard({ race, onSelect, onDetails }) {
+  const {
+    race_name,
+    location_city,
+    location_country,
+    date_ts,
+    image_thumb_url,
+    image_url,
+    distance_km,
+    race_type,
+  } = race;
+
+  const imgSrc = image_thumb_url || image_url || "";
+  const hasImage = Boolean(imgSrc);
+
+  // Monogram per fallback (prime 2 lettere significative del nome)
+  const monogram = (race_name || "Race")
+    .replace(/[^A-Za-z0-9 ]/g, "")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map(w => w[0]?.toUpperCase() || "")
+    .join("");
+
+  // Formattazioni comode
+  const dateFmt = safeDateToDMY(date_ts);
+  const place = [location_city, location_country].filter(Boolean).join(", ");
+  const distanceShort = Array.isArray(distance_km)
+    ? distance_km.join(", ")
+    : (distance_km || "").toString();
 
   return (
     <div className="race-card">
-      <div className="race-card__image-wrap">
-        <img className="race-card__img" src={img} alt={race.race_name} loading="lazy" />
-      </div>
-      <div className="race-card__body">
-        <h3 className="race-card__title">{race.race_name}</h3>
-        <p className="race-card__meta">
-          {race.location_city}
-          {race.location_city && race.location_country ? ", " : ""}
-          {race.location_country}
-        </p>
-        <p className="race-card__meta">{dateStr}</p>
-        {race.distance_km && <p className="race-card__badge">Distanze: {race.distance_km}</p>}
+      {/* MEDIA */}
+      {hasImage ? (
+        <div className="race-media">
+          <img
+            src={imgSrc}
+            alt={race_name}
+            loading="lazy"
+            onError={(e) => {
+              // se l’immagine fallisce, nasconde l’img così scatta il fallback CSS sotto
+              e.currentTarget.style.display = "none";
+              e.currentTarget.parentElement?.classList.add("no-image");
+            }}
+          />
+        </div>
+      ) : (
+        <div className="race-media no-image">
+          {/* Badge monogramma */}
+          <div className="race-monogram" aria-hidden="true">{monogram}</div>
+          {/* Badge distanza (se presente) */}
+          {distanceShort && (
+            <div className="race-distance-badge">{distanceShort}</div>
+          )}
+          {/* Logo Runshift se ti va (commenta se non lo vuoi) */}
+          {/* <img className="race-logo-watermark" src="/images/logo-runshift-R-mountain-road.png" alt="" aria-hidden="true" /> */}
+        </div>
+      )}
 
-        <div className="race-card__actions">
-          <button className="btn btn-outline" onClick={() => onDetails?.(race)}>Dettagli</button>
-          {!!onSelect && <button className="btn btn-primary" onClick={() => onSelect?.(race)}>Seleziona</button>}
+      {/* BODY */}
+      <div className="race-body">
+        <div className="race-header">
+          <h3 className="race-title" title={race_name}>{race_name}</h3>
+          {race_type ? <span className="race-chip">{race_type}</span> : null}
+        </div>
+
+        <div className="race-meta">
+          <div className="race-meta-row">
+            <span className="race-meta-label">Data</span>
+            <span className="race-meta-value">{dateFmt}</span>
+          </div>
+          {place && (
+            <div className="race-meta-row">
+              <span className="race-meta-label">Luogo</span>
+              <span className="race-meta-value">{place}</span>
+            </div>
+          )}
+          {distanceShort && (
+            <div className="race-meta-row">
+              <span className="race-meta-label">Distanze</span>
+              <span className="race-meta-value">{distanceShort}</span>
+            </div>
+          )}
+        </div>
+
+        {/* FOOTER */}
+        <div className="race-actions">
+          <button className="btn btn-outline" onClick={onDetails}>Dettagli</button>
+          <button className="btn btn-primary" onClick={onSelect}>Seleziona</button>
         </div>
       </div>
     </div>
   );
 }
+
 
 /* Hero + Home */
 function Home({ onStartSearch, onOpenTool, onDetails, onSelect }) {
