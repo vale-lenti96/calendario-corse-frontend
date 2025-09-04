@@ -341,5 +341,207 @@ select.input{
 .build-slot .cards-grid{
   grid-template-columns: 1fr !important;
 }
+/* ======= Race Card no-image friendly ======= */
+.race-card {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid rgba(20, 20, 20, 0.06);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+  transition: transform .2s ease, box-shadow .2s ease;
+  height: 100%; /* per allineare i bottoni in basso */
+}
+.race-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.10);
+}
+
+/* Media area con altezza fissa per uniformità */
+.race-media {
+  position: relative;
+  height: 180px;             /* <-- allinea altezza immagine card */
+  width: 100%;
+  overflow: hidden;
+  background: #0e1111;       /* sfondo neutro se l'immagine tarda */
+}
+.race-media img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Fallback senza immagine */
+.race-media.no-image {
+  display: grid;
+  place-items: center;
+  background: radial-gradient(120% 120% at 10% 0%, #1b2a21 0%, #0f1c15 40%, #0a1310 100%);
+  /* “dark autumn”: verde pino profondo con sfumature */
+}
+.race-media.no-image::before {
+  /* Texture/pattern morbido */
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(80px 80px at 20% 30%, rgba(255,255,255,0.06), transparent 60%),
+    radial-gradient(60px 60px at 80% 20%, rgba(255,255,255,0.05), transparent 60%),
+    radial-gradient(100px 100px at 70% 80%, rgba(255,255,255,0.04), transparent 60%),
+    radial-gradient(120px 120px at 10% 90%, rgba(255,255,255,0.04), transparent 60%);
+  filter: blur(2px);
+  pointer-events: none;
+}
+.race-monogram {
+  z-index: 1;
+  font-weight: 800;
+  letter-spacing: 2px;
+  font-size: 56px;
+  color: rgba(255,255,255,0.9);
+  text-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  user-select: none;
+}
+.race-distance-badge {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.25);
+  max-width: 75%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.race-logo-watermark {
+  position: absolute;
+  left: 12px;
+  bottom: 10px;
+  width: 28px;
+  height: 28px;
+  opacity: 0.9;
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.35));
+}
+
+/* Body */
+.race-body {
+  display: flex;
+  flex-direction: column;
+  padding: 14px 14px 12px;
+  gap: 10px;
+  min-height: 220px; /* spazio sufficiente per meta + bottoni */
+}
+
+/* Header e titolo */
+.race-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.race-title {
+  font-size: 1.05rem;
+  line-height: 1.25;
+  font-weight: 700;
+  color: #111;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* max 2 righe */
+  -webkit-box-orient: vertical;
+}
+.race-chip {
+  flex: 0 0 auto;
+  background: #eaf5ee;
+  color: #134d2a;
+  border: 1px solid #cfe9d9;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Meta */
+.race-meta {
+  display: grid;
+  gap: 6px;
+}
+.race-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+.race-meta-label {
+  color: #5b5f62;
+  font-weight: 600;
+  min-width: 64px;
+}
+.race-meta-value {
+  color: #121212;
+  font-weight: 500;
+}
+
+/* Actions sticky in basso */
+.race-actions {
+  margin-top: auto; /* spinge i bottoni al fondo della card */
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* Pulsanti */
+.btn {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  height: 40px;                 /* altezza uniforme */
+  padding: 0 14px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: transform .15s ease, box-shadow .15s ease, background-color .15s ease, border-color .15s ease;
+}
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn-primary {
+  background: #0f6b3a;         /* dark autumn green */
+  color: #fff;
+  border-color: #0f6b3a;
+}
+.btn-primary:hover {
+  background: #0d5e33;
+  border-color: #0d5e33;
+  box-shadow: 0 6px 16px rgba(15,107,58,0.28);
+}
+
+.btn-outline {
+  background: #fff;
+  color: #0f6b3a;
+  border-color: #cfe9d9;
+}
+.btn-outline:hover {
+  background: #f3fbf7;
+  border-color: #9fd8bb;
+  box-shadow: 0 6px 16px rgba(15,107,58,0.12);
+}
+
+/* Responsive tweak: su mobile aumenta un pelo l’area media */
+@media (max-width: 640px) {
+  .race-media { height: 200px; }
+  .race-title { font-size: 1.1rem; }
+}
 
 
