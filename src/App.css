@@ -143,6 +143,19 @@ a.link:hover{ border-color:var(--green); }
   height:44px; display:inline-flex; align-items:center;
 }
 
+.filter-field { display:flex; flex-direction:column; gap:6px; }
+.filter-label { font-size:.9rem; font-weight:600; color:#444; }
+.filter-input {
+  height: 44px; /* uniforma altezza */
+  border: 1px solid #e2e6e9;
+  border-radius: 10px;
+  padding: 0 12px;
+  background: #fff;
+  font-size: 0.95rem;
+}
+.filter-input:focus { outline: none; border-color: #0f6b3a; box-shadow: 0 0 0 3px rgba(15,107,58,0.15); }
+
+
 
 /* ---------------- Calendar Dropdown ---------------- */
 .caldd{ position: relative; }
