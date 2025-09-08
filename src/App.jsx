@@ -224,7 +224,7 @@ function TopBar({ onLogo, onSearch, onPlans }) {
   return (
     <header className="topbar">
       <button className="logo-btn" onClick={onLogo} aria-label="Runshift Home">
-        <img src="public/images/logo-runshift-R-mountain-road.png" alt="Runshift" className="logo-img" />
+        <img src="/images/logo-runshift-R-mountain-road.png" alt="Runshift" className="logo-img" />
         <span className="logo-text">Runshift</span>
       </button>
       <nav className="topbar-nav" aria-label="Navigazione">
@@ -244,7 +244,7 @@ function HomeHero({ onOpenMenu, onStart, onPlans }) {
 
       <div className="hero-bg" aria-hidden="true">
         {/* Immagine sfocata in App.css via filter */}
-        <img src="/images/hero-runner-sunset.jpg" alt="" />
+        <img src="/images/vecteezy_runner-running-on-road-at-sunset-trees-and-city-background_68852330.jpeg" alt="" />
         <div className="hero-overlay"/>
       </div>
 
