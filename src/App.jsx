@@ -224,7 +224,7 @@ function TopBar({ onLogo, onSearch, onPlans }) {
   return (
     <header className="topbar">
       <button className="logo-btn" onClick={onLogo} aria-label="Runshift Home">
-        <img src="/images/logo-runshift-R-mountain-road.png" alt="Runshift" className="logo-img" />
+        <img src="public/images/logo-runshift-R-mountain-road.png" alt="Runshift" className="logo-img" />
         <span className="logo-text">Runshift</span>
       </button>
       <nav className="topbar-nav" aria-label="Navigazione">
